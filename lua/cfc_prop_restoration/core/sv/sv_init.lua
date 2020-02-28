@@ -66,11 +66,12 @@ local function handleDisconnect( ply )
     local plySteamID = ply:SteamID()
 
     for _, prop in pairs( ents.GetAll() ) do
-        if prop:CPPIGetOwner() == ply then
-            if not duplicator.IsAllowed( prop:GetClass() ) then return end
+        if prop:CPPIGetOwner() ~= ply then goto ncontinue end
+        if not duplicator.IsAllowed( prop:GetClass() ) then goto ncontinue end
 
-            table.insert( playerProps, prop )
-        end
+        table.insert( playerProps, prop )
+
+        ::ncontinue::
     end
 
     recent_disconnects[plySteamID] = CurTime() + expireTime
@@ -93,7 +94,7 @@ local function restorationThink()
     end
 
     -- Deleting long disconnects
-    for sid64, expireTime in pairs(recent_disconnects) do
+    for sid64, expireTime in pairs( recent_disconnects ) do
         if CurTime() >= expireTime then
             recent_disconnects[sid64] = nil
             propData[sid64] = nil
