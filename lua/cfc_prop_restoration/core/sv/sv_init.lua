@@ -59,7 +59,7 @@ hook.Add( "PlayerInitialSpawn", "CFC_Restoration_Reconnect", handleReconnect )
 
 net.Receive( "Restore_RestorePlayerProps", function( len, ply )
     spawnInPlayerProps( ply )
-end)
+end )
 
 local function handleDisconnect( ply )
     local player_props = {}
