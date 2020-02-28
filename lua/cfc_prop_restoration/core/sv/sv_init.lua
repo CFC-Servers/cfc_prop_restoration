@@ -1,8 +1,8 @@
-local restoration_file_name = "props_backup.txt"
+local restoration_file_name = "props_backup.json"
 local recent_disconnects = recent_disconnects or {}
 local prop_data = prop_data or {}
-local expire_time = 300     -- Time (in seconds) for the player to reconnect before data is lost
-local autosave_delay = 60   -- How often (in seconds) the server saves prop data
+local expire_time = 600     -- Time (in seconds) for the player to reconnect before data is lost
+local autosave_delay = 180  -- How often (in seconds) the server saves prop data
 local next_save = CurTime() + autosave_delay
 
 util.AddNetworkString( "Restore_AlertReconnectingPlayer" )
@@ -95,6 +95,7 @@ local function restorationThink()
     for sid64, expire_time in pairs(recent_disconnects) do
         if CurTime() >= expire_time then
             recent_disconnects[sid64] = nil
+            prop_data[sid64] = nil
         end
     end
 end
