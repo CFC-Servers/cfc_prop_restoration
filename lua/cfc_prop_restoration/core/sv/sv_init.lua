@@ -36,6 +36,7 @@ local function spawnInPlayerProps( ply )
     for _, ent in pairs( player_props ) do
         ent:CPPISetOwner( ply )
 
+        -- Not perfect but its nice to have
         undo.Create( "[Recovered] Entity (" .. ent:GetClass() .. ")" )
             undo.AddEntity( ent )
             undo.SetPlayer( ply )
@@ -47,6 +48,7 @@ local function handleReconnect( ply )
     if prop_data[ply:SteamID()] == nil then 
         return print("nothing here boss") 
     end
+    
     -- NET MESSAGE CLIENT HERE --
     spawnInPlayerProps( ply )
 end
