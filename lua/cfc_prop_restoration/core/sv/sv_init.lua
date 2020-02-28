@@ -46,9 +46,11 @@ local function spawnInPlayerProps( ply )
 end
 
 local function handleReconnect( ply )
-    if prop_data[ply:SteamID()] == nil then return end
+    local player_steamid = ply:SteamID()
 
-    -- NET MESSAGE CLIENT HERE --
+    if prop_data[player_steamid] == nil then return end
+    recent_disconnects[player_steamid] = nil
+
     net.Start( "Restore_AlertReconnectingPlayer" )
     net.Send( ply )
 end
@@ -70,8 +72,13 @@ local function handleDisconnect( ply )
         table.insert( player_props, prop )
     end
 
-    prop_data[player_sid] = duplicator.CopyEnts( player_props )
     recent_disconnects[player_sid] = CurTime() + expire_time
+
+    -- If the player didnt spawn props resort to prop data from server
+    -- prevents losing props after a double crash
+    if table.IsEmpty( player_props ) then return end
+
+    prop_data[player_sid] = duplicator.CopyEnts( player_props )
 end
 
 hook.Add( "PlayerDisconnected", "CFC_Restoration_Disconnect", handleDisconnect )
