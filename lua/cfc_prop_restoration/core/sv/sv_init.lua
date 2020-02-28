@@ -55,16 +55,13 @@ local function handleReconnect( ply )
     -- NET MESSAGE CLIENT HERE --
     net.Start( "Restore_AlertReconnectingPlayer" )
     net.Send( ply )
-
-    spawnInPlayerProps( ply )
 end
 
 hook.Add( "PlayerInitialSpawn", "CFC_Restoration_Reconnect", handleReconnect )
 
-net.Receive( "Restore_RestorePlayerProps", function(len, ply)
-    
+net.Receive( "Restore_RestorePlayerProps", function( len, ply )
+    spawnInPlayerProps( ply )
 end)
-
 
 local function handleDisconnect( ply )
     print( "Disconnect: Saving [" .. ply:Name() .. "]'s props.")
