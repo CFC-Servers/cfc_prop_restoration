@@ -5,6 +5,9 @@ local expire_time = 300     -- Time (in seconds) for the player to reconnect bef
 local autosave_delay = 60   -- How often (in seconds) the server saves prop data
 local next_save = CurTime() + autosave_delay
 
+util.AddNetworkString( "Restore_AlertReconnectingPlayer" )
+util.AddNetworkString( "Restore_RestorePlayerProps" )
+
 if not file.Exists( restoration_file_name, "DATA" ) then
     file.Write( restoration_file_name, "" )
 else
@@ -48,12 +51,20 @@ local function handleReconnect( ply )
     if prop_data[ply:SteamID()] == nil then 
         return print("nothing here boss") 
     end
-    
+
     -- NET MESSAGE CLIENT HERE --
+    net.Start( "Restore_AlertReconnectingPlayer" )
+    net.Send( ply )
+
     spawnInPlayerProps( ply )
 end
 
 hook.Add( "PlayerInitialSpawn", "CFC_Restoration_Reconnect", handleReconnect )
+
+net.Receive( "Restore_RestorePlayerProps", function(len, ply)
+    
+end)
+
 
 local function handleDisconnect( ply )
     print( "Disconnect: Saving [" .. ply:Name() .. "]'s props.")
