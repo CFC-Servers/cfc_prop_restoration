@@ -15,6 +15,7 @@ end
 
 -- Populating recent_disconnects with crashed players
 for sid64, _ in pairs(prop_data) do
+    print( "Adding " .. sid64 .. " to recent_disconnects." )
     recent_disconnects[sid64] = CurTime() + expire_time
 end
 
@@ -28,11 +29,24 @@ local function isValidPlayer( ent )
 end
 
 local function spawnInPlayerProps( ply )
-    local _ents = prop[ply:SteamID64()]
-    duplicator.Paste( ply, _ents[1], _ents[2] )
+    print( "Spawning [" .. ply:Name() .. "]'s props." )
+    local _ents = prop_data[ply:SteamID()]
+    local player_props = duplicator.Paste( ply, _ents.Entities, _ents.Constraints )
+
+    for _, ent in pairs( player_props ) do
+        ent:CPPISetOwner( ply )
+
+        undo.Create( "[Recovered] Entity (" .. ent:GetClass() .. ")" )
+            undo.AddEntity( ent )
+            undo.SetPlayer( ply )
+        undo.Finish()
+    end
 end
 
 local function handleReconnect( ply )
+    if prop_data[ply:SteamID()] == nil then 
+        return print("nothing here boss") 
+    end
     -- NET MESSAGE CLIENT HERE --
     spawnInPlayerProps( ply )
 end
@@ -40,8 +54,9 @@ end
 hook.Add( "PlayerInitialSpawn", "CFC_Restoration_Reconnect", handleReconnect )
 
 local function handleDisconnect( ply )
+    print( "Disconnect: Saving [" .. ply:Name() .. "]'s props.")
     local player_props = {}
-    local player_sid = ply:SteamID64()
+    local player_sid = ply:SteamID()
 
     for _, prop in pairs( ents.GetAll() ) do
         if prop:CPPIGetOwner() ~= ply then continue end
