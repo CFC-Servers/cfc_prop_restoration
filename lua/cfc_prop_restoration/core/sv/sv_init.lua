@@ -26,10 +26,6 @@ local function savePropDataToFile()
     file.Write( restorationFileName, encodeData )
 end
 
-local function isValidPlayer( ent )
-    return IsValid( ent ) and ent:IsPlayer()
-end
-
 local function spawnInPlayerProps( ply )
     local _ents = propData[ply:SteamID()]
     local playerProps = duplicator.Paste( ply, _ents.Entities, _ents.Constraints )
@@ -94,8 +90,8 @@ timer.Create( "restorationThink", 5, 0, function()
     end
 
     -- Deleting long disconnects
-    for sid64, expireTime in pairs( recent_disconnects ) do
-        if CurTime() >= expireTime then
+    for sid64, plyExpireTime in pairs( recent_disconnects ) do
+        if CurTime() >= plyExpireTime then
             recent_disconnects[sid64] = nil
             propData[sid64] = nil
         end
