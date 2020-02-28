@@ -18,7 +18,6 @@ end
 
 -- Populating recent_disconnects with crashed players
 for sid64, _ in pairs(prop_data) do
-    print( "Adding " .. sid64 .. " to recent_disconnects." )
     recent_disconnects[sid64] = CurTime() + expire_time
 end
 
@@ -32,7 +31,6 @@ local function isValidPlayer( ent )
 end
 
 local function spawnInPlayerProps( ply )
-    print( "Spawning [" .. ply:Name() .. "]'s props." )
     local _ents = prop_data[ply:SteamID()]
     local player_props = duplicator.Paste( ply, _ents.Entities, _ents.Constraints )
 
@@ -48,9 +46,7 @@ local function spawnInPlayerProps( ply )
 end
 
 local function handleReconnect( ply )
-    if prop_data[ply:SteamID()] == nil then 
-        return print("nothing here boss") 
-    end
+    if prop_data[ply:SteamID()] == nil then return end
 
     -- NET MESSAGE CLIENT HERE --
     net.Start( "Restore_AlertReconnectingPlayer" )
@@ -64,7 +60,6 @@ net.Receive( "Restore_RestorePlayerProps", function( len, ply )
 end)
 
 local function handleDisconnect( ply )
-    print( "Disconnect: Saving [" .. ply:Name() .. "]'s props.")
     local player_props = {}
     local player_sid = ply:SteamID()
 
