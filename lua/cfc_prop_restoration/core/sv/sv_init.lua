@@ -1,29 +1,29 @@
-local restoration_file_name = "props_backup.json"
+local restorationFileName = "props_backup.json"
 local recent_disconnects = recent_disconnects or {}
-local prop_data = prop_data or {}
-local expire_time = 600     -- Time (in seconds) for the player to reconnect before data is lost
-local autosave_delay = 180  -- How often (in seconds) the server saves prop data
-local next_save = CurTime() + autosave_delay
+local propData = propData or {}
+local expireTime = 600     -- Time (in seconds) for the player to reconnect before data is lost
+local autosaveDelay = 180  -- How often (in seconds) the server saves prop data
+local nextSave = CurTime() + autosaveDelay
 
 util.AddNetworkString( "Restore_AlertReconnectingPlayer" )
 util.AddNetworkString( "Restore_RestorePlayerProps" )
 
-if not file.Exists( restoration_file_name, "DATA" ) then
-    file.Write( restoration_file_name, "" )
+if not file.Exists( restorationFileName, "DATA" ) then
+    file.Write( restorationFileName, "" )
 else
-    local fileContents = file.Read( restoration_file_name )
+    local fileContents = file.Read( restorationFileName )
     local decodedContents = util.JSONToTable( fileContents )
-    prop_data = decodedContents or {}
+    propData = decodedContents or {}
 end
 
 -- Populating recent_disconnects with crashed players
-for sid64, _ in pairs(prop_data) do
-    recent_disconnects[sid64] = CurTime() + expire_time
+for sid64, _ in pairs(propData) do
+    recent_disconnects[sid64] = CurTime() + expireTime
 end
 
 local function savePropDataToFile()
-    local encodeData = util.TableToJSON( prop_data )
-    file.Write( restoration_file_name, encodeData )
+    local encodeData = util.TableToJSON( propData )
+    file.Write( restorationFileName, encodeData )
 end
 
 local function isValidPlayer( ent )
@@ -31,10 +31,10 @@ local function isValidPlayer( ent )
 end
 
 local function spawnInPlayerProps( ply )
-    local _ents = prop_data[ply:SteamID()]
-    local player_props = duplicator.Paste( ply, _ents.Entities, _ents.Constraints )
+    local _ents = propData[ply:SteamID()]
+    local playerProps = duplicator.Paste( ply, _ents.Entities, _ents.Constraints )
 
-    for _, ent in pairs( player_props ) do
+    for _, ent in pairs( playerProps ) do
         ent:CPPISetOwner( ply )
 
         -- Not perfect but its nice to have
@@ -46,10 +46,10 @@ local function spawnInPlayerProps( ply )
 end
 
 local function handleReconnect( ply )
-    local player_steamid = ply:SteamID()
+    local plySteamID = ply:SteamID()
 
-    if prop_data[player_steamid] == nil then return end
-    recent_disconnects[player_steamid] = nil
+    if propData[plySteamID] == nil then return end
+    recent_disconnects[plySteamID] = nil
 
     net.Start( "Restore_AlertReconnectingPlayer" )
     net.Send( ply )
@@ -62,40 +62,41 @@ net.Receive( "Restore_RestorePlayerProps", function( len, ply )
 end )
 
 local function handleDisconnect( ply )
-    local player_props = {}
-    local player_sid = ply:SteamID()
+    local playerProps = {}
+    local plySteamID = ply:SteamID()
 
     for _, prop in pairs( ents.GetAll() ) do
-        if prop:CPPIGetOwner() ~= ply then continue end
-        if not duplicator.IsAllowed( prop:GetClass() ) then return end
+        if prop:CPPIGetOwner() == ply then
+            if not duplicator.IsAllowed( prop:GetClass() ) then return end
 
-        table.insert( player_props, prop )
+            table.insert( playerProps, prop )
+        end
     end
 
-    recent_disconnects[player_sid] = CurTime() + expire_time
+    recent_disconnects[plySteamID] = CurTime() + expireTime
 
     -- If the player didnt spawn props resort to prop data from server
     -- prevents losing props after a double crash
-    if table.IsEmpty( player_props ) then return end
+    if table.IsEmpty( playerProps ) then return end
 
-    prop_data[player_sid] = duplicator.CopyEnts( player_props )
+    propData[plySteamID] = duplicator.CopyEnts( playerProps )
 end
 
 hook.Add( "PlayerDisconnected", "CFC_Restoration_Disconnect", handleDisconnect )
 
 local function restorationThink()
     -- Autosaving props
-    if CurTime() >= next_save then
+    if CurTime() >= nextSave then
         savePropDataToFile()
 
-        next_save = CurTime() + autosave_delay
+        nextSave = CurTime() + autosaveDelay
     end
 
     -- Deleting long disconnects
-    for sid64, expire_time in pairs(recent_disconnects) do
-        if CurTime() >= expire_time then
+    for sid64, expireTime in pairs(recent_disconnects) do
+        if CurTime() >= expireTime then
             recent_disconnects[sid64] = nil
-            prop_data[sid64] = nil
+            propData[sid64] = nil
         end
     end
 end
