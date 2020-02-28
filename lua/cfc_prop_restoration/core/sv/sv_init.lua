@@ -66,12 +66,12 @@ local function handleDisconnect( ply )
     local plySteamID = ply:SteamID()
 
     for _, prop in pairs( ents.GetAll() ) do
-        if prop:CPPIGetOwner() ~= ply then goto ncontinue end
-        if not duplicator.IsAllowed( prop:GetClass() ) then goto ncontinue end
+        local plyIsCPPIOwner = prop:CPPIGetOwner() == ply
+        local classIsAllowed = duplicator.IsAllowed( prop:GetClass() )
 
-        table.insert( playerProps, prop )
-
-        ::ncontinue::
+        if plyIsCPPIOwner and classIsAllowed then
+            table.insert( playerProps, prop )
+        end
     end
 
     recent_disconnects[plySteamID] = CurTime() + expireTime
