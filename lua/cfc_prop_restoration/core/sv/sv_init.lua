@@ -85,7 +85,7 @@ end
 
 hook.Add( "PlayerDisconnected", "CFC_Restoration_Disconnect", handleDisconnect )
 
-local function restorationThink()
+timer.Create( "restorationThink", 5, 0, function()
     -- Autosaving props
     if CurTime() >= nextSave then
         savePropDataToFile()
@@ -100,6 +100,4 @@ local function restorationThink()
             propData[sid64] = nil
         end
     end
-end
-
-hook.Add( "Tick", "CFC_Restoration_Tick", restorationThink )
+end )
