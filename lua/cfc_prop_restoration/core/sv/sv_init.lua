@@ -28,7 +28,7 @@ end
 
 local function spawnInPlayerProps( ply )
     local _ents = propData[ply:SteamID()]
-    local playerProps = duplicator.Paste( ply, _ents.Entities, _ents.Constraints )
+    local playerProps, _ = duplicator.Paste( ply, _ents.Entities, _ents.Constraints )
 
     for _, ent in pairs( playerProps ) do
         ent:CPPISetOwner( ply )
