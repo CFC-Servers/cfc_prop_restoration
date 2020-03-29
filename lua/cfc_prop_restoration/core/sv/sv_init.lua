@@ -5,6 +5,10 @@ local expireTime = 600     -- Time (in seconds) for the player to reconnect befo
 local autosaveDelay = 180  -- How often (in seconds) the server saves prop data
 local nextSave = CurTime() + autosaveDelay
 
+local areacopy_classblacklist = {
+    gmod_anchor = true
+}
+
 util.AddNetworkString( "Restore_AlertReconnectingPlayer" )
 util.AddNetworkString( "Restore_RestorePlayerProps" )
 
@@ -17,8 +21,35 @@ else
 end
 
 -- Populating recent_disconnects with crashed players
-for sid64, _ in pairs(propData) do
-    recent_disconnects[sid64] = CurTime() + expireTime
+for sid, _ in pairs( propData ) do
+    recent_disconnects[sid] = CurTime() + expireTime
+end
+
+local function PlayerCanDupeCPPI( ply, ent )
+    if ent.DoNotDuplicate or areacopy_classblacklist[ent:GetClass()] or not IsValid( ent:GetPhysicsObject() ) or not duplicator.IsAllowed( ent:GetClass() ) then 
+        return false 
+    end
+
+    return ent:CPPIGetOwner() == ply
+end
+
+local function copyPlayerProps( ply )
+    Entities = {}
+    
+    for _, ent in pairs( ents.GetAll() ) do
+        if PlayerCanDupeCPPI( ply, ent ) then
+            Entities[ent:EntIndex()] = ent
+        end
+    end
+
+    local Ent = Entities[next(Entities)]
+
+    local HeadEnt = {}
+    HeadEnt.Index = Ent:EntIndex()
+    HeadEnt.Pos = Ent:GetPos()
+
+    Entities, Constraints = AdvDupe2.duplicator.AreaCopy( Entities, HeadEnt.Pos, true )
+    return Entities, Constraints
 end
 
 local function savePropDataToFile()
@@ -27,25 +58,16 @@ local function savePropDataToFile()
 end
 
 local function spawnInPlayerProps( ply )
-    local _ents = propData[ply:SteamID()]
-    local playerProps, _ = duplicator.Paste( ply, _ents.Entities, _ents.Constraints )
+    if not propData[ply:SteamID()] then return end
 
-    for _, ent in pairs( playerProps ) do
-        ent:CPPISetOwner( ply )
-
-        -- Not perfect but its nice to have
-        undo.Create( "[Recovered] Entity (" .. ent:GetClass() .. ")" )
-            undo.AddEntity( ent )
-            undo.SetPlayer( ply )
-        undo.Finish()
-    end
+    ADInterface.paste( ply, propData[ply:SteamID()] )
 end
 
 local function handleReconnect( ply )
-    local plySteamID = ply:SteamID()
+    local plySID = ply:SteamID()
 
-    if propData[plySteamID] == nil then return end
-    recent_disconnects[plySteamID] = nil
+    if not propData[plySID] then return end
+    recent_disconnects[plySID] = nil
 
     net.Start( "Restore_AlertReconnectingPlayer" )
     net.Send( ply )
@@ -58,25 +80,12 @@ net.Receive( "Restore_RestorePlayerProps", function( len, ply )
 end )
 
 local function handleDisconnect( ply )
-    local playerProps = {}
-    local plySteamID = ply:SteamID()
+    local plySID = ply:SteamID()
 
-    for _, prop in pairs( ents.GetAll() ) do
-        local plyIsCPPIOwner = prop:CPPIGetOwner() == ply
-        local classIsAllowed = duplicator.IsAllowed( prop:GetClass() )
+    recent_disconnects[plySID] = CurTime() + expireTime
 
-        if plyIsCPPIOwner and classIsAllowed then
-            table.insert( playerProps, prop )
-        end
-    end
-
-    recent_disconnects[plySteamID] = CurTime() + expireTime
-
-    -- If the player didnt spawn props resort to prop data from server
-    -- prevents losing props after a double crash
-    if table.IsEmpty( playerProps ) then return end
-
-    propData[plySteamID] = duplicator.CopyEnts( playerProps )
+    propData[plySID] = ADInterface.copy( ply )
+    savePropDataToFile()
 end
 
 hook.Add( "PlayerDisconnected", "CFC_Restoration_Disconnect", handleDisconnect )
@@ -90,10 +99,10 @@ timer.Create( "restorationThink", 5, 0, function()
     end
 
     -- Deleting long disconnects
-    for sid64, plyExpireTime in pairs( recent_disconnects ) do
+    for sid, plyExpireTime in pairs( recent_disconnects ) do
         if CurTime() >= plyExpireTime then
-            recent_disconnects[sid64] = nil
-            propData[sid64] = nil
+            recent_disconnects[sid] = nil
+            propData[sid] = nil
         end
     end
 end )
