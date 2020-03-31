@@ -10,7 +10,7 @@ net.Receive( "Restore_AlertReconnectingPlayer", function( len )
     notif:SetText( "Restore props from previous server save?" )
     notif:AddButton( "Restore", Color(0, 255, 0), "restore" )
     notif:SetTimed( false )
-    --notif:SetIgnoreable( false )
+    notif:SetIgnoreable( false )
 
     function notif:OnButtonPressed( data )
         restorePlayerProps()
