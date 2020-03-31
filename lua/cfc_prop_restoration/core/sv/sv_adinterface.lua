@@ -10,7 +10,7 @@ local areacopy_classblacklist = {
     gmod_anchor = true
 }
 
-local function PlayerCanDupeCPPI( ply, ent )
+local function playerCanDupeCPPI( ply, ent )
     if ent.DoNotDuplicate or areacopy_classblacklist[ent:GetClass()] or not IsValid( ent:GetPhysicsObject() ) or not duplicator.IsAllowed( ent:GetClass() ) then return false end
     return ent:CPPIGetOwner() == ply
 end
@@ -32,7 +32,7 @@ local phys_constraint_system_types = {
     WireMotor = true,
 }
 
-local function GroupConstraintOrder( ply, constraints )
+local function groupConstraintOrder( ply, constraints )
     --First seperate the nocollides, sorted, and unsorted constraints
     local nocollide, sorted, unsorted = {}, {}, {}
     for k, v in pairs( constraints ) do
@@ -107,11 +107,11 @@ local function GroupConstraintOrder( ply, constraints )
     return ret
 end
 
-local function CopyPlayerProps( ply )
+local function copyPlayerProps( ply )
     --select all owned props
     local entities = {}
     for _, ent in pairs( ents.GetAll() ) do
-        if PlayerCanDupeCPPI( ply, ent ) then
+        if playerCanDupeCPPI( ply, ent ) then
             entities[ent:EntIndex()] = ent
         end
     end
@@ -126,7 +126,7 @@ local function CopyPlayerProps( ply )
     return { entities, constraints, headEnt }
 end
 
-local function PastePlayerProps( ply, data )
+local function pastePlayerProps( ply, data )
     local entities, constraints, headEnt = unpack( data )
 
     if ply.AdvDupe2.Pasting or ply.AdvDupe2.Downloading then
@@ -136,11 +136,11 @@ local function PastePlayerProps( ply, data )
 
     ply.AdvDupe2.HeadEnt = headEnt
     ply.AdvDupe2.Entities = entities
-    ply.AdvDupe2.Constraints = GroupConstraintOrder( ply, constraints )
+    ply.AdvDupe2.Constraints = groupConstraintOrder( ply, constraints )
 
     ply.AdvDupe2.Pasting = true
     AdvDupe2.InitPastingQueue( ply, nil, nil, ply.AdvDupe2.HeadEnt.Pos, true, true, false, true )
 end
 
-ADInterface.copy = CopyPlayerProps
-ADInterface.paste = PastePlayerProps
+ADInterface.copy = copyPlayerProps
+ADInterface.paste = pastePlayerProps
