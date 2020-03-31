@@ -54,8 +54,7 @@ end
 
 local function savePropDataToFile()
     local encodeData = util.TableToJSON( propData )
-    print(file.Write( restorationFileName, encodeData ))
-    print("test")
+    file.Write( restorationFileName, encodeData )
 end
 
 local function spawnInPlayerProps( ply )
@@ -95,7 +94,6 @@ hook.Add( "PlayerDisconnected", "CFC_Restoration_Disconnect", handleDisconnect )
 timer.Create( "restorationThink", 5, 0, function()
     -- Autosaving props
     if CurTime() >= nextSave then
-        print("t")
         savePropDataToFile()
 
         nextSave = CurTime() + autosaveDelay
