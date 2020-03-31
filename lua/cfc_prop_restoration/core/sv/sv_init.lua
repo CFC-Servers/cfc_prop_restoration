@@ -21,33 +21,6 @@ for sid, _ in pairs( propData ) do
     recent_disconnects[sid] = CurTime() + expireTime
 end
 
-local function PlayerCanDupeCPPI( ply, ent )
-    if ent.DoNotDuplicate or areacopy_classblacklist[ent:GetClass()] or not IsValid( ent:GetPhysicsObject() ) or not duplicator.IsAllowed( ent:GetClass() ) then 
-        return false 
-    end
-
-    return ent:CPPIGetOwner() == ply
-end
-
-local function copyPlayerProps( ply )
-    Entities = {}
-    
-    for _, ent in pairs( ents.GetAll() ) do
-        if PlayerCanDupeCPPI( ply, ent ) then
-            Entities[ent:EntIndex()] = ent
-        end
-    end
-
-    local Ent = Entities[next(Entities)]
-
-    local HeadEnt = {}
-    HeadEnt.Index = Ent:EntIndex()
-    HeadEnt.Pos = Ent:GetPos()
-
-    Entities, Constraints = AdvDupe2.duplicator.AreaCopy( Entities, HeadEnt.Pos, true )
-    return Entities, Constraints
-end
-
 local function savePropDataToFile()
     local encodeData = util.TableToJSON( propData )
     file.Write( restorationFileName, encodeData )
