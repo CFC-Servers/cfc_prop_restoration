@@ -60,7 +60,7 @@ end
 
 hook.Add( "PlayerDisconnected", "CFC_Restoration_Disconnect", handleDisconnect )
 
-timer.Create( "restorationThink", 5, 0, function()
+timer.Create( "restorationThink", 1, 0, function()
     -- Autosaving props
     if CurTime() >= nextSave then
         savePropDataToFile()
