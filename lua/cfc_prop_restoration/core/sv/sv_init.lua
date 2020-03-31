@@ -5,10 +5,6 @@ local expireTime = 600     -- Time (in seconds) for the player to reconnect befo
 local autosaveDelay = 180  -- How often (in seconds) the server saves prop data
 local nextSave = CurTime() + autosaveDelay
 
-local areacopy_classblacklist = {
-    gmod_anchor = true
-}
-
 util.AddNetworkString( "Restore_AlertReconnectingPlayer" )
 util.AddNetworkString( "Restore_RestorePlayerProps" )
 
