@@ -1,3 +1,9 @@
+--[[
+    99% of this file was written by the Wiremod Dev Team from the Advanced Duplicator 2 Repository (https://github.com/wiremod/advdupe2);
+    It has been modified to extract simple copying and pasting into a global table.
+    Also includes changes to the styling to fit CFC's standards.
+]]
+
 ADInterface = {}
 
 local areacopy_classblacklist = {
@@ -10,20 +16,20 @@ local function PlayerCanDupeCPPI( ply, ent )
 end
 
 local phys_constraint_system_types = {
-    Weld = true,
-    Rope = true,
-    Elastic = true,
-    Slider = true,
-    Axis = true,
     AdvBallsocket = true,
-    NoCollide = true,
-    Motor = true,
-    Pulley = true,
+    Axis = true,
     Ballsocket = true,
-    Winch = true,
+    Elastic = true,
     Hydraulic = true,
+    Motor = true,
+    NoCollide = true,
+    Pulley = true,
+    Rope = true,
+    Slider = true,
+    Weld = true,
+    Winch = true,
+    WireHydraulic = true,
     WireMotor = true,
-    WireHydraulic = true
 }
 
 local function GroupConstraintOrder( ply, constraints )
@@ -73,6 +79,7 @@ local function GroupConstraintOrder( ply, constraints )
             ::super_loopbreak::
         end
     end
+
     buildSystems( sorted )
     buildSystems( nocollide )
 
@@ -82,11 +89,13 @@ local function GroupConstraintOrder( ply, constraints )
             ret[#ret + 1] = v
         end
     end
+
     for _, system in pairs( sortingSystems ) do
         for _, v in pairs( system ) do
             ret[#ret + 1] = v
         end
     end
+
     for k, v in pairs( unsorted ) do
         ret[#ret + 1] = v
     end
@@ -98,39 +107,40 @@ local function GroupConstraintOrder( ply, constraints )
     return ret
 end
 
-local function copyPlayerProps( ply )
+local function CopyPlayerProps( ply )
     --select all owned props
-    local Entities = {}
+    local entities = {}
     for _, ent in pairs( ents.GetAll() ) do
         if PlayerCanDupeCPPI( ply, ent ) then
-            Entities[ent:EntIndex()] = ent
+            entities[ent:EntIndex()] = ent
         end
     end
 
-    local Ent = Entities[next( Entities )]
-    local HeadEnt = {}
-    HeadEnt.Index = Ent:EntIndex()
-    HeadEnt.Pos = Ent:GetPos()
+    local ent = entities[next( entities )]
+    local headEnt = {}
+    headEnt.Index = Ent:EntIndex()
+    headEnt.Pos = Ent:GetPos()
 
-    local Entities, Constraints = AdvDupe2.duplicator.AreaCopy( Entities, HeadEnt.Pos, true )
-    return { Entities, Constraints, HeadEnt }
+    local entities, constraints = AdvDupe2.duplicator.AreaCopy( entities, headEnt.Pos, true )
+    
+    return { entities, constraints, headEnt }
 end
 
-local function pastePlayerProps( ply, data )
-    local Entities, Constraints, HeadEnt = unpack( data )
+local function PastePlayerProps( ply, data )
+    local entities, constraints, headEnt = unpack( data )
 
     if ply.AdvDupe2.Pasting or ply.AdvDupe2.Downloading then
         AdvDupe2.Notify( ply, "Advanced Duplicator 2 is busy.", NOTIFY_ERROR )
         return false
     end
 
-    ply.AdvDupe2.HeadEnt = HeadEnt
-    ply.AdvDupe2.Entities = Entities
-    ply.AdvDupe2.Constraints = GroupConstraintOrder( ply, Constraints )
+    ply.AdvDupe2.HeadEnt = headEnt
+    ply.AdvDupe2.Entities = entities
+    ply.AdvDupe2.Constraints = GroupConstraintOrder( ply, constraints )
 
     ply.AdvDupe2.Pasting = true
     AdvDupe2.InitPastingQueue( ply, nil, nil, ply.AdvDupe2.HeadEnt.Pos, true, true, false, true )
 end
 
-ADInterface.copy = copyPlayerProps
-ADInterface.paste = pastePlayerProps
+ADInterface.copy = CopyPlayerProps
+ADInterface.paste = PastePlayerProps
