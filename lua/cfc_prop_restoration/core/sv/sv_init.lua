@@ -1,5 +1,5 @@
 local restorationFileName = "props_backup.json"
-local recent_disconnects = recent_disconnects or {}
+local diconnectedExpireTimes = diconnectedExpireTimes or {}
 local propData = propData or {}
 local expireTime = 600     -- Time (in seconds) for the player to reconnect before data is lost
 local autosaveDelay = 180  -- How often (in seconds) the server saves prop data
@@ -16,9 +16,9 @@ else
     propData = decodedContents or {}
 end
 
--- Populating recent_disconnects with crashed players
+-- Populating diconnectedExpireTimes with crashed players
 for steamid, _ in pairs( propData ) do
-    recent_disconnects[steamid] = CurTime() + expireTime
+    diconnectedExpireTimes[steamid] = CurTime() + expireTime
 end
 
 local function savePropDataToFile()
@@ -36,7 +36,7 @@ local function handleReconnect( ply )
     local plySID = ply:SteamID()
 
     if not propData[plySID] then return end
-    recent_disconnects[plySID] = nil
+    diconnectedExpireTimes[plySID] = nil
 
     net.Start( "Restore_AlertReconnectingPlayer" )
     net.Send( ply )
@@ -52,7 +52,7 @@ end )
 local function handleDisconnect( ply )
     local plySID = ply:SteamID()
 
-    recent_disconnects[plySID] = CurTime() + expireTime
+    diconnectedExpireTimes[plySID] = CurTime() + expireTime
 
     propData[plySID] = ADInterface.copy( ply )
     savePropDataToFile()
@@ -69,9 +69,9 @@ timer.Create( "restorationThink", 1, 0, function()
     end
 
     -- Deleting long disconnects
-    for steamid, plyExpireTime in pairs( recent_disconnects ) do
+    for steamid, plyExpireTime in pairs( diconnectedExpireTimes ) do
         if CurTime() >= plyExpireTime then
-            recent_disconnects[steamid] = nil
+            diconnectedExpireTimes[steamid] = nil
             propData[steamid] = nil
         end
     end
