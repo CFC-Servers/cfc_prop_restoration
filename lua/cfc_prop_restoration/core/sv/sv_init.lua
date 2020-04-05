@@ -17,8 +17,8 @@ else
 end
 
 -- Populating recent_disconnects with crashed players
-for sid, _ in pairs( propData ) do
-    recent_disconnects[sid] = CurTime() + expireTime
+for steamid, _ in pairs( propData ) do
+    recent_disconnects[steamid] = CurTime() + expireTime
 end
 
 local function savePropDataToFile()
@@ -69,10 +69,10 @@ timer.Create( "restorationThink", 1, 0, function()
     end
 
     -- Deleting long disconnects
-    for sid, plyExpireTime in pairs( recent_disconnects ) do
+    for steamid, plyExpireTime in pairs( recent_disconnects ) do
         if CurTime() >= plyExpireTime then
-            recent_disconnects[sid] = nil
-            propData[sid] = nil
+            recent_disconnects[steamid] = nil
+            propData[steamid] = nil
         end
     end
 end )
