@@ -5,9 +5,6 @@ local expireTime = 600     -- Time (in seconds) for the player to reconnect befo
 local autosaveDelay = 180  -- How often (in seconds) the server saves prop data
 local nextSave = CurTime() + autosaveDelay
 
-util.AddNetworkString( "Restore_AlertReconnectingPlayer" )
-util.AddNetworkString( "Restore_RestorePlayerProps" )
-
 if not file.Exists( restorationFileName, "DATA" ) then
     file.Write( restorationFileName, "" )
 else
@@ -32,22 +29,32 @@ local function spawnInPlayerProps( ply )
     ADInterface.paste( ply, propData[ply:SteamID()] )
 end
 
+local function sendRestorationNotification( ply )
+    notif = CFCNotifications.new( "CFC_PropRestorePrompt", "Buttons", true )
+    notif:SetTitle( "Restore Props" )
+    notif:SetText( "Restore props from previous server save?" )
+    notif:AddButton( "Restore", Color(0, 255, 0), "restore" )
+    notif:SetTimed( false )
+    notif:SetIgnoreable( false )
+
+    function notif:OnButtonPressed( data )
+        spawnInPlayerProps( ply )
+    end
+
+    notif:Send( ply )
+end
+
 local function handleReconnect( ply )
     local plySID = ply:SteamID()
 
     if not propData[plySID] then return end
     diconnectedExpireTimes[plySID] = nil
 
-    net.Start( "Restore_AlertReconnectingPlayer" )
-    net.Send( ply )
+
+    sendRestorationNotification( ply )
 end
 
 hook.Add( "PlayerInitialSpawn", "CFC_Restoration_Reconnect", handleReconnect )
-
--- Handling user confirmation
-net.Receive( "Restore_RestorePlayerProps", function( len, ply )
-    spawnInPlayerProps( ply )
-end )
 
 local function handleDisconnect( ply )
     local plySID = ply:SteamID()
