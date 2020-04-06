@@ -1,9 +1,13 @@
+require( "cfclogger" )
+
 local restorationFileName = "props_backup.json"
 local diconnectedExpireTimes = diconnectedExpireTimes or {}
 local propData = propData or {}
 local expireTime = 600     -- Time (in seconds) for the player to reconnect before data is lost
 local autosaveDelay = 180  -- How often (in seconds) the server saves prop data
 local nextSave = CurTime() + autosaveDelay
+
+local logger = CFCLogger( "Prop Restoration" )
 
 if not file.Exists( restorationFileName, "DATA" ) then
     file.Write( restorationFileName, "" )
@@ -21,6 +25,9 @@ end
 local function savePropDataToFile()
     local encodeData = util.TableToJSON( propData )
     file.Write( restorationFileName, encodeData )
+
+    local fileSize = string.NiceSize( file.Size( restorationFileName, "DATA" ) )
+    logger:info( "Saving prop data to " .. restorationFileName .. " (" .. fileSize .. ")" )
 end
 
 local function spawnInPlayerProps( ply )
@@ -77,6 +84,7 @@ timer.Create( "CFC_Restoration_Think", 1, 0, function()
     -- Deleting long disconnects
     for steamid, plyExpireTime in pairs( diconnectedExpireTimes ) do
         if CurTime() >= plyExpireTime then
+            logger:info( "Deleting entry for SteamID: " .. steamid )
             diconnectedExpireTimes[steamid] = nil
             propData[steamid] = nil
         end
