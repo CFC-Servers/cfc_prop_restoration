@@ -30,7 +30,7 @@ local function spawnInPlayerProps( ply )
 end
 
 local function sendRestorationNotification( ply )
-    notif = CFCNotifications.new( "CFC_PropRestorePrompt", "Buttons", true )
+    local notif = CFCNotifications.new( "CFC_PropRestorePrompt", "Buttons", true )
     notif:SetTitle( "Restore Props" )
     notif:SetText( "Restore props from previous server save?" )
     notif:AddButton( "Restore", Color(0, 255, 0), "restore" )
@@ -49,7 +49,6 @@ local function handleReconnect( ply )
 
     if not propData[plySID] then return end
     diconnectedExpireTimes[plySID] = nil
-
 
     sendRestorationNotification( ply )
 end
