@@ -9,6 +9,8 @@ local logger = CFCLogger( "Prop Restoration" )
 
 do
     if not ConVarExists( "cfc_proprestore_expire_delay" ) then
+        logger:debug( "Creating ConVar \"cfc_proprestore_expire_delay\" because it does not exist." )
+        
         CreateConVar(
             "cfc_proprestore_expire_delay",
             600,
@@ -19,6 +21,8 @@ do
     end
 
     if not ConVarExists( "cfc_proprestore_autosave_delay" ) then
+        logger:debug( "Creating ConVar \"cfc_proprestore_autosave_delay\" because it does not exist." )
+
         CreateConVar( 
             "cfc_proprestore_autosave_delay",
             180,
@@ -81,6 +85,8 @@ local function handleReconnect( ply )
     if not propData[plySID] then return end
     diconnectedExpireTimes[plySID] = nil
 
+    logger:info( "Sending notification to (" .. ply:SteamID() .. ")" )
+
     sendRestorationNotification( ply )
 end
 
@@ -91,8 +97,10 @@ local function handleDisconnect( ply )
     local expireTime = GetConVar( "cfc_proprestore_expire_delay" )
 
     diconnectedExpireTimes[plySID] = CurTime() + expireTime
-
     propData[plySID] = ADInterface.copy( ply )
+
+    logger:info( "Handling (" .. ply:SteamID() .. ")'s props." )
+
     savePropDataToFile()
 end
 
@@ -100,10 +108,11 @@ hook.Add( "PlayerDisconnected", "CFC_Restoration_Disconnect", handleDisconnect )
 
 timer.Create( "CFC_Restoration_Think", 1, 0, function()
     local time = CurTime()
-    
+
     -- Autosaving props
     if time >= nextSave then
         savePropDataToFile()
+        logger:info( "Autosaving props" )
 
         local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" )
         nextSave = time + autosaveDelay
