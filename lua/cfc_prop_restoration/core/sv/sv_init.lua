@@ -3,23 +3,47 @@ require( "cfclogger" )
 local restorationFileName = "props_backup.json"
 local diconnectedExpireTimes = diconnectedExpireTimes or {}
 local propData = propData or {}
-local expireTime = 600     -- Time (in seconds) for the player to reconnect before data is lost
-local autosaveDelay = 180  -- How often (in seconds) the server saves prop data
-local nextSave = CurTime() + autosaveDelay
+local nextSave = 0
 
 local logger = CFCLogger( "Prop Restoration" )
 
-if not file.Exists( restorationFileName, "DATA" ) then
-    file.Write( restorationFileName, "" )
-else
-    local fileContents = file.Read( restorationFileName )
-    local decodedContents = util.JSONToTable( fileContents )
-    propData = decodedContents or {}
-end
+do
+    if not ConVarExists( "cfc_proprestore_expire_delay" ) then
+        CreateConVar(
+            "cfc_proprestore_expire_delay",
+            600,
+            FCVAR_NONE,
+            "Time (in seconds) for the player to reconnect before prop data is lost.",
+            0
+        )
+    end
 
--- Populating diconnectedExpireTimes with crashed players
-for steamid, _ in pairs( propData ) do
-    diconnectedExpireTimes[steamid] = CurTime() + expireTime
+    if not ConVarExists( "cfc_proprestore_autosave_delay" ) then
+        CreateConVar( 
+            "cfc_proprestore_autosave_delay",
+            180,
+            FCVAR_NONE,
+            "How often (in seconds) the server saves prop data",
+            0
+        )
+    end
+
+    local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" )
+    nextSave = CurTime() + autosaveDelay
+
+    if not file.Exists( restorationFileName, "DATA" ) then
+        file.Write( restorationFileName, "" )
+    else
+        local fileContents = file.Read( restorationFileName )
+        local decodedContents = util.JSONToTable( fileContents )
+        propData = decodedContents or {}
+    end
+
+    -- Populating diconnectedExpireTimes with crashed players
+    for steamid, _ in pairs( propData ) do
+        local expireTime = GetConVar( "cfc_proprestore_expire_delay" )
+        diconnectedExpireTimes[steamid] = CurTime() + expireTime
+    end
 end
 
 local function savePropDataToFile()
@@ -64,6 +88,7 @@ hook.Add( "PlayerInitialSpawn", "CFC_Restoration_Reconnect", handleReconnect )
 
 local function handleDisconnect( ply )
     local plySID = ply:SteamID()
+    local expireTime = GetConVar( "cfc_proprestore_expire_delay" )
 
     diconnectedExpireTimes[plySID] = CurTime() + expireTime
 
@@ -78,6 +103,7 @@ timer.Create( "CFC_Restoration_Think", 1, 0, function()
     if CurTime() >= nextSave then
         savePropDataToFile()
 
+        local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" )
         nextSave = CurTime() + autosaveDelay
     end
 
