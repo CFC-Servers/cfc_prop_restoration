@@ -116,6 +116,8 @@ local function copyPlayerProps( ply )
         end
     end
 
+    if table.IsEmpty( entities ) then return end
+
     local ent = entities[next( entities )]
     local headEnt = {}
     headEnt.Index = ent:EntIndex()
