@@ -1,16 +1,28 @@
 require( "cfclogger" )
 
-local restorationFileName = "props_backup.json"
+local logger = CFCLogger( "Prop Restoration" )
+local restorationDirectory = "prop_restoration"
 local diconnectedExpireTimes = diconnectedExpireTimes or {}
 local propData = propData or {}
+local queue = queue or {}
 local nextSave = 0
 
-local logger = CFCLogger( "Prop Restoration" )
-
 do
+    local function populateDisconnectedExpireTimes()
+        local files, _ = file.Find( restorationDirectory .. "/*.json", "DATA" )
+        local expireTime = GetConVar( "cfc_proprestore_expire_delay" ):GetInt()
+
+        for _, fileName in pairs( files ) do
+            local fname = string.sub( fileName, 1, -5 )
+            local steamid = util.SteamIDFrom64( fname )
+
+            diconnectedExpireTimes[steamid] = CurTime() + expireTime
+        end
+    end
+
     if not ConVarExists( "cfc_proprestore_expire_delay" ) then
         logger:debug( "Creating ConVar \"cfc_proprestore_expire_delay\" because it does not exist." )
-        
+
         CreateConVar(
             "cfc_proprestore_expire_delay",
             600,
@@ -32,30 +44,38 @@ do
         )
     end
 
-    local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" )
+    if not file.Exists( restorationDirectory, "DATA" ) then
+        logger:debug( "Creating " .. restorationDirectory .. " directory because it does not exist.")
+        file.CreateDir( restorationDirectory )
+    end
+
+    local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" ):GetInt()
     nextSave = CurTime() + autosaveDelay
 
-    if not file.Exists( restorationFileName, "DATA" ) then
-        file.Write( restorationFileName, "" )
-    else
-        local fileContents = file.Read( restorationFileName )
-        local decodedContents = util.JSONToTable( fileContents )
-        propData = decodedContents or {}
-    end
-
-    -- Populating diconnectedExpireTimes with crashed players
-    for steamid, _ in pairs( propData ) do
-        local expireTime = GetConVar( "cfc_proprestore_expire_delay" )
-        diconnectedExpireTimes[steamid] = CurTime() + expireTime
-    end
+    populateDisconnectedExpireTimes()
 end
 
-local function savePropDataToFile()
-    local encodeData = util.TableToJSON( propData )
-    file.Write( restorationFileName, encodeData )
+local function addPropDataToQueue( ply, data )
+    queue[ply:SteamID()] = data
+end
 
-    local fileSize = string.NiceSize( file.Size( restorationFileName, "DATA" ) )
-    logger:info( "Saving prop data to " .. restorationFileName .. " (" .. fileSize .. ")" )
+local function processQueueData()
+    local steamid, data = next( queue )
+    if not steamid or not data then return end
+
+    logger:debug( "Handling queue for " .. steamid )
+
+    local time = os.time()
+    local steamid64 = util.SteamIDTo64( steamid )
+    local encodeData = util.TableToJSON( data )
+    local fileName = restorationDirectory .. "/" .. steamid64 .. ".json"
+
+    file.Write( fileName, encodeData )
+
+    local fileSize = string.NiceSize( file.Size( fileName, "DATA" ) )
+    logger:info( "Saving prop data to " .. fileName .. " (" .. fileSize .. ")" )
+
+    queue[steamid] = nil
 end
 
 local function spawnInPlayerProps( ply )
@@ -64,11 +84,23 @@ local function spawnInPlayerProps( ply )
     ADInterface.paste( ply, propData[ply:SteamID()] )
 end
 
+local function getPropsFromFile( ply )
+    if propData[ply:SteamID()] then return end
+
+    local fileName = restorationDirectory .. "/" .. ply:SteamID64() .. ".json"
+    if not file.Exists( fileName, "DATA" ) then return end
+
+    local contents = file.Read( fileName, "DATA" )
+    local decodeData = util.JSONToTable( contents )
+
+    propData[ply:SteamID()] = decodeData
+end
+
 local function sendRestorationNotification( ply )
     local notif = CFCNotifications.new( "CFC_PropRestorePrompt", "Buttons", true )
     notif:SetTitle( "Restore Props" )
     notif:SetText( "Restore props from previous server save?" )
-    notif:AddButton( "Restore", Color(0, 255, 0), "restore" )
+    notif:AddButton( "Restore", Color( 0, 255, 0 ), "restore" )
     notif:SetTimed( false )
     notif:SetIgnoreable( false )
 
@@ -82,6 +114,8 @@ end
 local function handleReconnect( ply )
     local plySID = ply:SteamID()
 
+    getPropsFromFile( ply )
+
     if not propData[plySID] then return end
     diconnectedExpireTimes[plySID] = nil
 
@@ -94,27 +128,34 @@ hook.Add( "PlayerInitialSpawn", "CFC_Restoration_Reconnect", handleReconnect )
 
 local function handleDisconnect( ply )
     local plySID = ply:SteamID()
-    local expireTime = GetConVar( "cfc_proprestore_expire_delay" )
+    local expireTime = GetConVar( "cfc_proprestore_expire_delay" ):GetInt()
+    local props = ADInterface.copy( ply )
 
     diconnectedExpireTimes[plySID] = CurTime() + expireTime
-    propData[plySID] = ADInterface.copy( ply )
+    propData[plySID] = props
 
     logger:info( "Handling (" .. ply:SteamID() .. ")'s props." )
 
-    savePropDataToFile()
+    addPropDataToQueue( ply, props )
 end
 
 hook.Add( "PlayerDisconnected", "CFC_Restoration_Disconnect", handleDisconnect )
 
-timer.Create( "CFC_Restoration_Think", 1, 0, function()
+timer.Create( "CFC_Restoration_Think", 5, 0, function()
     local time = CurTime()
 
     -- Autosaving props
-    if time >= nextSave then
-        savePropDataToFile()
-        logger:info( "Autosaving props" )
+    if time >= nextSave and table.IsEmpty( queue ) then
+        logger:info( "Autosaving player props" )
 
-        local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" )
+        for _, ply in pairs( player.GetHumans() ) do
+            local props = ADInterface.copy( ply )
+
+            propData[ply:SteamID()] = props
+            addPropDataToQueue( ply, props )
+        end
+
+        local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" ):GetInt()
         nextSave = time + autosaveDelay
     end
 
@@ -122,8 +163,15 @@ timer.Create( "CFC_Restoration_Think", 1, 0, function()
     for steamid, plyExpireTime in pairs( diconnectedExpireTimes ) do
         if time >= plyExpireTime then
             logger:info( "Deleting entry for SteamID: " .. steamid )
+            local steamid64 = util.SteamIDTo64( steamid )
+
             diconnectedExpireTimes[steamid] = nil
             propData[steamid] = nil
+
+            file.Delete( restorationDirectory .. "/" .. steamid64 .. ".json" )
         end
     end
+
+    -- Handling Queued PropData
+    processQueueData()
 end )
