@@ -99,17 +99,19 @@ end
 hook.Add( "PlayerDisconnected", "CFC_Restoration_Disconnect", handleDisconnect )
 
 timer.Create( "CFC_Restoration_Think", 1, 0, function()
+    local time = CurTime()
+    
     -- Autosaving props
-    if CurTime() >= nextSave then
+    if time >= nextSave then
         savePropDataToFile()
 
         local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" )
-        nextSave = CurTime() + autosaveDelay
+        nextSave = time + autosaveDelay
     end
 
     -- Deleting long disconnects
     for steamid, plyExpireTime in pairs( diconnectedExpireTimes ) do
-        if CurTime() >= plyExpireTime then
+        if time >= plyExpireTime then
             logger:info( "Deleting entry for SteamID: " .. steamid )
             diconnectedExpireTimes[steamid] = nil
             propData[steamid] = nil
