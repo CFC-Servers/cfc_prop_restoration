@@ -26,7 +26,7 @@ do
         CreateConVar(
             "cfc_proprestore_expire_delay",
             600,
-            FCVAR_NONE,
+            FCVAR_ARCHIVE,
             "Time (in seconds) for the player to reconnect before prop data is lost.",
             0
         )
@@ -38,7 +38,7 @@ do
         CreateConVar( 
             "cfc_proprestore_autosave_delay",
             180,
-            FCVAR_NONE,
+            FCVAR_ARCHIVE,
             "How often (in seconds) the server saves prop data",
             0
         )
