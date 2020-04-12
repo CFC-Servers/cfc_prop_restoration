@@ -151,8 +151,10 @@ timer.Create( "CFC_Restoration_Think", 5, 0, function()
         for _, ply in pairs( player.GetHumans() ) do
             local props = ADInterface.copy( ply )
 
-            propData[ply:SteamID()] = props
-            addPropDataToQueue( ply, props )
+            if not table.IsEmpty( props ) then
+                propData[ply:SteamID()] = props
+                addPropDataToQueue( ply, props )
+            end
         end
 
         local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" ):GetInt()
