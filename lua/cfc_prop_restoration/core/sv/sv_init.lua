@@ -111,6 +111,13 @@ local function sendRestorationNotification( ply )
     notif:Send( ply )
 end
 
+local function notifyOnError( ply )
+    return function( err )
+        local message = "ERROR: " .. err
+        CFCNotifications.sendSimple( "CFC_PropRestoreError", "Prop Restoration error", message, ply )
+    end
+end
+
 local function handleReconnect( ply )
     local plySID = ply:SteamID()
 
@@ -130,6 +137,7 @@ local function handleDisconnect( ply )
     local plySID = ply:SteamID()
     local expireTime = GetConVar( "cfc_proprestore_expire_delay" ):GetInt()
     local props = ADInterface.copy( ply )
+    if not props then return end
 
     diconnectedExpireTimes[plySID] = CurTime() + expireTime
     propData[plySID] = props
@@ -149,9 +157,11 @@ timer.Create( "CFC_Restoration_Think", 5, 0, function()
         logger:info( "Autosaving player props" )
 
         for _, ply in pairs( player.GetHumans() ) do
-            local props = ADInterface.copy( ply )
 
-            if not table.IsEmpty( props ) then
+            local success, props = xpcall( ADInterface.copy, notifyOnError( ply ), ply )
+            success = success and props
+
+            if success and not table.IsEmpty( props ) then
                 propData[ply:SteamID()] = props
                 addPropDataToQueue( ply, props )
             end
