@@ -116,7 +116,6 @@ local function notifyOnError( ply )
         local message = "ERROR: " .. err
         CFCNotifications.sendSimple( "CFC_PropRestoreError", "Prop Restoration errored for your props", message, ply )
     end
-    
 end
 
 local function handleReconnect( ply )
