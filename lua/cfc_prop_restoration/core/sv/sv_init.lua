@@ -113,10 +113,10 @@ end
 
 local function notifyOnError( ply )
     return function( err )
+
         local message = "ERROR: " .. err
-        CFCNotifications.sendSimple( "CFC_PropRestoreError", "Prop Restoration errored for your props", message, ply )
+        CFCNotifications.sendSimple( "CFC_PropRestoreError", "Prop Restoration error", message, ply )
     end
-    
 end
 
 local function handleReconnect( ply )
@@ -158,6 +158,7 @@ timer.Create( "CFC_Restoration_Think", 5, 0, function()
         logger:info( "Autosaving player props" )
 
         for _, ply in pairs( player.GetHumans() ) do
+
             local success, props = xpcall( ADInterface.copy, notifyOnError( ply ), ply )
             success = success and props
 
