@@ -113,7 +113,6 @@ end
 
 local function notifyOnError( ply )
     return function( err )
-
         local message = "ERROR: " .. err
         CFCNotifications.sendSimple( "CFC_PropRestoreError", "Prop Restoration error", message, ply )
     end
