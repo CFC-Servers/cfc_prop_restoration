@@ -2,7 +2,7 @@ require( "cfclogger" )
 
 local logger = CFCLogger( "Prop Restoration" )
 local restorationDirectory = "prop_restoration"
-local diconnectedExpireTimes = diconnectedExpireTimes or {}
+local disconnectedExpireTimes = disconnectedExpireTimes or {}
 local propData = propData or {}
 local queue = queue or {}
 local nextSave = 0
@@ -16,7 +16,8 @@ do
             local fname = string.sub( fileName, 1, -5 )
             local steamid = util.SteamIDFrom64( fname )
 
-            diconnectedExpireTimes[steamid] = CurTime() + expireTime
+            disconnectedExpireTimes[steamid] = CurTime() + expireTime
+            logger:debug( "Adding (" .. steamid .. ") to the disconnectedExpireTimes table." )
         end
     end
 
@@ -124,7 +125,7 @@ local function handleReconnect( ply )
     getPropsFromFile( ply )
 
     if not propData[plySID] then return end
-    diconnectedExpireTimes[plySID] = nil
+    disconnectedExpireTimes[plySID] = nil
 
     logger:info( "Sending notification to (" .. ply:SteamID() .. ")" )
 
@@ -139,7 +140,7 @@ local function handleDisconnect( ply )
     local props = ADInterface.copy( ply )
     if not props then return end
 
-    diconnectedExpireTimes[plySID] = CurTime() + expireTime
+    disconnectedExpireTimes[plySID] = CurTime() + expireTime
     propData[plySID] = props
 
     logger:info( "Handling (" .. ply:SteamID() .. ")'s props." )
@@ -172,12 +173,12 @@ timer.Create( "CFC_Restoration_Think", 5, 0, function()
     end
 
     -- Deleting long disconnects
-    for steamid, plyExpireTime in pairs( diconnectedExpireTimes ) do
+    for steamid, plyExpireTime in pairs( disconnectedExpireTimes ) do
         if time >= plyExpireTime then
             logger:info( "Deleting entry for SteamID: " .. steamid )
             local steamid64 = util.SteamIDTo64( steamid )
 
-            diconnectedExpireTimes[steamid] = nil
+            disconnectedExpireTimes[steamid] = nil
             propData[steamid] = nil
 
             file.Delete( restorationDirectory .. "/" .. steamid64 .. ".json" )
