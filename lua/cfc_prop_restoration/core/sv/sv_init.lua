@@ -1,6 +1,6 @@
 require( "cfclogger" )
 
-local logger = CFCLogger( "Prop Restoration" )
+local logger = CFCLogger( "Prop Restoration", "debug" )
 local restorationDirectory = "prop_restoration"
 local disconnectedExpireTimes = disconnectedExpireTimes or {}
 local propData = propData or {}
