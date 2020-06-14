@@ -6,6 +6,7 @@ local disconnectedExpireTimes = disconnectedExpireTimes or {}
 local propData = propData or {}
 local queue = queue or {}
 local nextSave = 0
+local notif
 
 do
     local function populateDisconnectedExpireTimes()
@@ -56,6 +57,25 @@ do
     populateDisconnectedExpireTimes()
 end
 
+local function spawnInPlayerProps( ply )
+    if not propData[ply:SteamID()] then return end
+
+    ADInterface.paste( ply, propData[ply:SteamID()] )
+end
+
+hook.Add( "CFC_Notifications_init", "CFC_PropRestore_CreateNotif", function()
+    notif = CFCNotifications.new( "CFC_PropRestorePrompt", "Buttons", true )
+    notif:SetTitle( "Restore Props" )
+    notif:SetText( "Restore props from previous server save?" )
+    notif:AddButton( "Restore", Color( 0, 255, 0 ), "restore" )
+    notif:SetTimed( false )
+    notif:SetIgnoreable( false )
+
+    function notif:OnButtonPressed( ply, data )
+        spawnInPlayerProps( ply )
+    end
+end )
+
 local function addPropDataToQueue( ply, data )
     queue[ply:SteamID()] = data
 end
@@ -79,12 +99,6 @@ local function processQueueData()
     queue[steamid] = nil
 end
 
-local function spawnInPlayerProps( ply )
-    if not propData[ply:SteamID()] then return end
-
-    ADInterface.paste( ply, propData[ply:SteamID()] )
-end
-
 local function getPropsFromFile( ply )
     if propData[ply:SteamID()] then return end
 
@@ -98,17 +112,7 @@ local function getPropsFromFile( ply )
 end
 
 local function sendRestorationNotification( ply )
-    local notif = CFCNotifications.new( "CFC_PropRestorePrompt", "Buttons", true )
-    notif:SetTitle( "Restore Props" )
-    notif:SetText( "Restore props from previous server save?" )
-    notif:AddButton( "Restore", Color( 0, 255, 0 ), "restore" )
-    notif:SetTimed( false )
-    notif:SetIgnoreable( false )
-
-    function notif:OnButtonPressed( data )
-        spawnInPlayerProps( ply )
-    end
-
+    if not notif then return end
     notif:Send( ply )
 end
 
