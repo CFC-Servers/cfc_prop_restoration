@@ -64,6 +64,8 @@ local function spawnInPlayerProps( ply )
 end
 
 hook.Add( "CFC_Notifications_init", "CFC_PropRestore_CreateNotif", function()
+    logger:debug( "Creating notification object." )
+
     notif = CFCNotifications.new( "CFC_PropRestorePrompt", "Buttons", true )
     notif:SetTitle( "Restore Props" )
     notif:SetText( "Restore props from previous server save?" )
