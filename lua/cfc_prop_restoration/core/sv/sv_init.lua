@@ -1,11 +1,14 @@
 require( "cfclogger" )
 
-local logger = CFCLogger( "Prop Restoration", "debug" )
-local restorationDirectory = "prop_restoration"
+local logger                  = CFCLogger( "Prop Restoration", "debug" )
+
+local restorationDirectory    = "prop_restoration"
 local disconnectedExpireTimes = disconnectedExpireTimes or {}
-local propData = propData or {}
-local queue = queue or {}
-local nextSave = 0
+local propData                = propData or {}
+local queue                   = queue or {}
+local restorationDelays       = restorationDelays or {}
+local restoreDelay            = 90
+local nextSave                = 0
 local notif
 
 do
@@ -55,6 +58,14 @@ do
     nextSave = CurTime() + autosaveDelay
 
     populateDisconnectedExpireTimes()
+end
+
+local function canRestoreProps( ply )
+    if restorationDelays[ply:SteamID()] < CurTime() then
+        return true
+    end
+
+    return false
 end
 
 local function spawnInPlayerProps( ply )
@@ -155,6 +166,24 @@ local function handleDisconnect( ply )
 end
 
 hook.Add( "PlayerDisconnected", "CFC_Restoration_Disconnect", handleDisconnect )
+
+local function handleChatCommands( ply, text )
+    local exp = string.Explode( " ", text )
+
+    if exp[1] == "!restoreprops" then
+        if canRestoreProps( ply ) then
+            spawnInPlayerProps( ply )
+
+            restorationDelays[ply:SteamID()] = CurTime() + restoreDelay
+        else
+            ply:ChatPrint( "You must wait " .. math.round( restorationDelays[ply:SteamID()] - CurTime(), 0 ) .. " more seconds before using this again." )
+        end
+
+        return ""
+    end
+end
+
+hook.Add( "PlayerSay", "CFC_Restoration_PlayerSay", handleChatCommands )
 
 timer.Create( "CFC_Restoration_Think", 5, 0, function()
     local time = CurTime()
