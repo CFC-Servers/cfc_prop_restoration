@@ -179,10 +179,15 @@ local function handleChatCommands( ply, text )
 
     if exp[1] == "!restoreprops" then
         if canRestoreProps( ply ) then
-            spawnInPlayerProps( ply )
+            local data = propData[ply:SteamID()]
+            if data == nil or table.IsEmpty( data ) then
+                ply:ChatPrint( "Couldn't find any props to restore." )
+            else
+                spawnInPlayerProps( ply )
 
-            restorationDelays[ply:SteamID()] = CurTime() + restoreDelay
-            ply:ChatPrint( "Spawninging in your props...")
+                restorationDelays[ply:SteamID()] = CurTime() + restoreDelay
+                ply:ChatPrint( "Spawninging in your props...")
+            end
         else
             ply:ChatPrint( "You must wait " .. math.Round( restorationDelays[ply:SteamID()] - CurTime(), 0 ) .. " more seconds before using this again." )
         end
