@@ -1,14 +1,14 @@
 require( "cfclogger" )
 
-local logger                  = CFCLogger( "Prop Restoration", "debug" )
+local logger = CFCLogger( "Prop Restoration", "debug" )
 
-local restorationDirectory    = "prop_restoration"
-local disconnectedExpireTimes = disconnectedExpireTimes or {}
-local propData                = propData or {}
-local queue                   = queue or {}
-local restorationDelays       = restorationDelays or {}
-local restoreDelay            = 90
-local nextSave                = 0
+local restorationDirectory = "prop_restoration"
+local disconnectedExpireTimes = {}
+local propData = {}
+local queue = {}
+local restorationDelays = {}
+local restoreDelay = 90
+local nextSave = 0
 local notif
 
 do
@@ -61,7 +61,7 @@ do
 end
 
 local function canRestoreProps( ply )
-    if restorationDelays[ply:SteamID()] < CurTime() then
+    if ( restorationDelays[ply:SteamID()] or 0 ) < CurTime() then
         return true
     end
 
@@ -132,6 +132,8 @@ end
 local function notifyOnError( ply )
     return function( err )
         local message = "ERROR: " .. err
+
+        logger:error( err )
         CFCNotifications.sendSimple( "CFC_PropRestoreError", "Prop Restoration error", message, ply )
     end
 end
@@ -146,7 +148,9 @@ local function handleReconnect( ply )
 
     logger:info( "Sending notification to (" .. ply:SteamID() .. ")" )
 
-    sendRestorationNotification( ply )
+    timer.Simple( 5, function()
+        sendRestorationNotification( ply )
+    end )
 end
 
 hook.Add( "PlayerInitialSpawn", "CFC_Restoration_Reconnect", handleReconnect )
@@ -158,7 +162,10 @@ local function handleDisconnect( ply )
     if not props then return end
 
     disconnectedExpireTimes[plySID] = CurTime() + expireTime
-    propData[plySID] = props
+
+    if not table.IsEmpty( props ) and props ~= nil then
+        propData[plySID] = props
+    end
 
     logger:info( "Handling (" .. ply:SteamID() .. ")'s props." )
 
@@ -175,8 +182,9 @@ local function handleChatCommands( ply, text )
             spawnInPlayerProps( ply )
 
             restorationDelays[ply:SteamID()] = CurTime() + restoreDelay
+            ply:ChatPrint( "Spawninging in your props...")
         else
-            ply:ChatPrint( "You must wait " .. math.round( restorationDelays[ply:SteamID()] - CurTime(), 0 ) .. " more seconds before using this again." )
+            ply:ChatPrint( "You must wait " .. math.Round( restorationDelays[ply:SteamID()] - CurTime(), 0 ) .. " more seconds before using this again." )
         end
 
         return ""
@@ -197,7 +205,7 @@ timer.Create( "CFC_Restoration_Think", 5, 0, function()
             local success, props = xpcall( ADInterface.copy, notifyOnError( ply ), ply )
             success = success and props
 
-            if success and not table.IsEmpty( props ) then
+            if success and not table.IsEmpty( props ) and props ~= nil then
                 propData[ply:SteamID()] = props
                 addPropDataToQueue( ply, props )
             end
