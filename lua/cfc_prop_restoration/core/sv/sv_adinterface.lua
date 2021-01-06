@@ -124,7 +124,7 @@ local function copyPlayerProps( ply )
     headEnt.Pos = ent:GetPos()
 
     local entities, constraints = AdvDupe2.duplicator.AreaCopy( entities, headEnt.Pos, true )
-    
+
     return { entities, constraints, headEnt }
 end
 
