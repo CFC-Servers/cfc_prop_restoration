@@ -99,7 +99,6 @@ local function processQueueData()
 
     logger:debug( "Handling queue for " .. steamid )
 
-    local time = os.time()
     local steamid64 = util.SteamIDTo64( steamid )
     local encodeData = util.TableToJSON( data )
     local fileName = restorationDirectory .. "/" .. steamid64 .. ".json"
