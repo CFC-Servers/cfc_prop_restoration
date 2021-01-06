@@ -5,6 +5,7 @@ local logger = CFCLogger( "Prop Restoration", "debug" )
 local restorationDirectory = "prop_restoration"
 local disconnectedExpireTimes = {}
 local propData = {}
+local playerProps = {}
 local queue = {}
 local restorationDelays = {}
 local restoreDelay = 90
@@ -137,6 +138,36 @@ local function notifyOnError( ply )
     end
 end
 
+local function getPropVelocities( ply )
+    local velocities = {}
+    local props = playerProps[ply]
+
+    for _, prop in pairs( props ) do
+        velocities[prop] = prop:GetVelocity()
+    end
+
+    return velocities
+end
+
+
+local function restorePropVelocities( props )
+    for prop, vel in pairs( props ) do
+        prop:SetVelocity( vel )
+    end
+end
+
+local function getAllPlayerProps()
+    for _, prop in pairs( ents.GetAll() ) do
+        if IsValid( prop ) then
+            local propOwner = prop:CPPIGetOwner()
+            if IsValid( propOwner ) then
+                playerProps[propOwner] = playerProps[propOwner] or {}
+                table.insert(playerProps[propOwner], prop)
+            end
+        end
+    end
+end
+
 local function handleReconnect( ply )
     local plySID = ply:SteamID()
 
@@ -196,6 +227,10 @@ local function handleChatCommands( ply, text )
 
     if exp[1] == "!saveprops" then
 
+        getAllPlayerProps()
+
+        local propVelocities = getPropVelocities( ply )
+
         local success, props = xpcall( ADInterface.copy, notifyOnError( ply ), ply )
         success = success and props
 
@@ -203,6 +238,8 @@ local function handleChatCommands( ply, text )
             propData[ply:SteamID()] = props
             addPropDataToQueue( ply, props )
         end
+
+        restorePropVelocities( propVelocities )
 
         ply:ChatPrint( "Saved props for restoration." )
 
@@ -220,7 +257,11 @@ timer.Create( "CFC_Restoration_Think", 5, 0, function()
     if time >= nextSave and table.IsEmpty( queue ) then
         logger:info( "Autosaving player props" )
 
+        getAllPlayerProps()
+
         for _, ply in pairs( player.GetHumans() ) do
+
+            local propVelocities = getPropVelocities( ply )
 
             local success, props = xpcall( ADInterface.copy, notifyOnError( ply ), ply )
             success = success and props
@@ -229,6 +270,8 @@ timer.Create( "CFC_Restoration_Think", 5, 0, function()
                 propData[ply:SteamID()] = props
                 addPropDataToQueue( ply, props )
             end
+
+            restorePropVelocities( propVelocities )
         end
 
         local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" ):GetInt()
