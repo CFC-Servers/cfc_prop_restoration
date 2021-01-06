@@ -143,7 +143,10 @@ local function getPropVelocities( ply )
     local props = playerProps[ply]
 
     for _, prop in pairs( props ) do
-        velocities[prop] = prop:GetVelocity()
+        local propPhys = prop:GetPhysicsObject()
+        if IsValid( propPhys ) then
+            velocities[prop] = propPhys:GetVelocity()
+        end
     end
 
     return velocities
@@ -152,7 +155,10 @@ end
 
 local function restorePropVelocities( props )
     for prop, vel in pairs( props ) do
-        prop:SetVelocity( vel )
+        local propPhys = prop:GetPhysicsObject()
+        if IsValid( propPhys ) then
+            propPhys:SetVelocity( vel )
+        end
     end
 end
 
