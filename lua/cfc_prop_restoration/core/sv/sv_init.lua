@@ -40,7 +40,7 @@ do
     if not ConVarExists( "cfc_proprestore_autosave_delay" ) then
         logger:debug( "Creating ConVar \"cfc_proprestore_autosave_delay\" because it does not exist." )
 
-        CreateConVar( 
+        CreateConVar(
             "cfc_proprestore_autosave_delay",
             180,
             FCVAR_ARCHIVE,
