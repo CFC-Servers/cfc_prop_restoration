@@ -163,6 +163,7 @@ local function restorePropVelocities( props )
 end
 
 local function getAllPlayerProps()
+    playerProps = {}
     for _, prop in pairs( ents.GetAll() ) do
         if IsValid( prop ) then
             local propOwner = prop:CPPIGetOwner()
