@@ -142,6 +142,8 @@ local function getPropVelocities( ply )
     local velocities = {}
     local props = playerProps[ply]
 
+    if table.Empty( props ) then return end
+
     for _, prop in pairs( props ) do
         local propPhys = prop:GetPhysicsObject()
         if IsValid( propPhys ) then
@@ -154,6 +156,7 @@ end
 
 
 local function restorePropVelocities( props )
+    if table.Empty( props ) then return end
     for prop, vel in pairs( props ) do
         local propPhys = prop:GetPhysicsObject()
         if IsValid( propPhys ) then
