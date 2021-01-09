@@ -158,7 +158,7 @@ end
 
 
 local function restorePropVelocities( props )
-    if table.IsEmpty( props ) then return end
+    if props == nil then return end
     for prop, vel in pairs( props ) do
         local propPhys = prop:GetPhysicsObject()
         if IsValid( propPhys ) then
