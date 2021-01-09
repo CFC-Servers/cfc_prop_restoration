@@ -139,10 +139,10 @@ local function notifyOnError( ply )
 end
 
 local function getPropVelocities( ply )
+    if table.IsEmpty( playerProps ) then return end
+
     local velocities = {}
     local props = playerProps[ply]
-
-    if table.IsEmpty( playerProps ) then return end
 
     for _, prop in pairs( props ) do
         local propPhys = prop:GetPhysicsObject()
