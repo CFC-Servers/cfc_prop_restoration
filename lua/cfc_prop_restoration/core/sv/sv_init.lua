@@ -5,7 +5,6 @@ local logger = CFCLogger( "Prop Restoration", "debug" )
 local restorationDirectory = "prop_restoration"
 local disconnectedExpireTimes = {}
 local propData = {}
-local playerProps = {}
 local queue = {}
 local restorationDelays = {}
 local restoreDelay = 90
@@ -138,13 +137,10 @@ local function notifyOnError( ply )
     end
 end
 
-local function getPropVelocities( ply )
-    if table.IsEmpty( playerProps ) then return end
-
+local function getPropVelocities( props )
     local velocities = {}
-    local props = playerProps[ply]
 
-    if table.IsEmpty( playerProps[ply] ) then return end
+    if not props then return {} end
 
     for _, prop in pairs( props ) do
         local propPhys = prop:GetPhysicsObject()
@@ -158,9 +154,10 @@ end
 
 
 local function restorePropVelocities( props )
-    if props == nil then return end
+    if not props then return end
     for prop, vel in pairs( props ) do
         local propPhys = prop:GetPhysicsObject()
+
         if IsValid( propPhys ) then
             propPhys:SetVelocity( vel )
         end
@@ -168,16 +165,18 @@ local function restorePropVelocities( props )
 end
 
 local function getAllPlayerProps()
-    playerProps = {}
+    local playerProps = {}
     for _, prop in pairs( ents.GetAll() ) do
         if IsValid( prop ) then
             local propOwner = prop:CPPIGetOwner()
+
             if IsValid( propOwner ) then
                 playerProps[propOwner] = playerProps[propOwner] or {}
-                table.insert(playerProps[propOwner], prop)
+                table.insert( playerProps[propOwner], prop )
             end
         end
     end
+    return playerProps
 end
 
 local function handleReconnect( ply )
@@ -236,28 +235,29 @@ local function handleChatCommands( ply, text )
 
         return ""
     end
-
+--remove after testing
     if exp[1] == "!saveprops" then
 
-        getAllPlayerProps()
+        local playersProps = getAllPlayerProps()
 
-        local propVelocities = getPropVelocities( ply )
+        for _, ply in pairs( player.GetHumans() ) do
 
-        local success, props = xpcall( ADInterface.copy, notifyOnError( ply ), ply )
-        success = success and props
+            local propVelocities = getPropVelocities( playersProps[ply] )
 
-        if success and not table.IsEmpty( props ) and props ~= nil then
-            propData[ply:SteamID()] = props
-            addPropDataToQueue( ply, props )
+            local success, props = xpcall( ADInterface.copy, notifyOnError( ply ), ply )
+            success = success and props
+
+            if success and not table.IsEmpty( props ) and props ~= nil then
+                propData[ply:SteamID()] = props
+                addPropDataToQueue( ply, props )
+            end
+
+            restorePropVelocities( propVelocities )
         end
-
-        restorePropVelocities( propVelocities )
-
-        ply:ChatPrint( "Saved props for restoration." )
 
         return ""
     end
-
+--end
 end
 
 hook.Add( "PlayerSay", "CFC_Restoration_PlayerSay", handleChatCommands )
@@ -269,11 +269,11 @@ timer.Create( "CFC_Restoration_Think", 5, 0, function()
     if time >= nextSave and table.IsEmpty( queue ) then
         logger:info( "Autosaving player props" )
 
-        getAllPlayerProps()
+        local playersProps = getAllPlayerProps()
 
         for _, ply in pairs( player.GetHumans() ) do
 
-            local propVelocities = getPropVelocities( ply )
+            local propVelocities = getPropVelocities( playersProps[ply] )
 
             local success, props = xpcall( ADInterface.copy, notifyOnError( ply ), ply )
             success = success and props
