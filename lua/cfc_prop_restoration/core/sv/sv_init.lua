@@ -235,29 +235,6 @@ local function handleChatCommands( ply, text )
 
         return ""
     end
---remove after testing
-    if exp[1] == "!saveprops" then
-
-        local playersProps = getAllPlayerProps()
-
-        for _, ply in pairs( player.GetHumans() ) do
-
-            local propVelocities = getPropVelocities( playersProps[ply] )
-
-            local success, props = xpcall( ADInterface.copy, notifyOnError( ply ), ply )
-            success = success and props
-
-            if success and not table.IsEmpty( props ) and props ~= nil then
-                propData[ply:SteamID()] = props
-                addPropDataToQueue( ply, props )
-            end
-
-            restorePropVelocities( propVelocities )
-        end
-
-        return ""
-    end
---end
 end
 
 hook.Add( "PlayerSay", "CFC_Restoration_PlayerSay", handleChatCommands )
