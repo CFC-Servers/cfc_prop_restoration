@@ -28,11 +28,12 @@ local stringSub = string.sub
 local stringNiceSize = string.NiceSize
 
 local fileCreateDir = file.CreateDir
-local fileWrite = file.Write
-local fileSize = file.Size
-local fileRead = file.Read
+local fileDelete = file.Delete
 local fileExists = file.Exists
 local fileFind = file.Find
+local fileRead = file.Read
+local fileSize = file.Size
+local fileWrite = file.Write
 
 local TableToJSON = util.TableToJSON
 local JSONToTable = util.JSONToTable
@@ -53,7 +54,7 @@ do
     local function populateDisconnectedExpireTimes()
         local expireTime = GetConVar( "cfc_proprestore_expire_delay" ):GetInt()
 
-        local files = file.Find( restorationDirectory .. "/*.json", "DATA" )
+        local files = fileFind( restorationDirectory .. "/*.json", "DATA" )
         local fileCount = #files
 
         for i = 1, fileCount do
@@ -179,7 +180,7 @@ end
 
 
 local function storePropVelocities( props, propCount )
-    if not props then return {} end
+    if not props then return end
 
     for i = 1, propCount do
         local prop = rawget( props, i )
@@ -334,7 +335,7 @@ timer.Create( "CFC_Restoration_Think", 5, 0, function()
             rawset( disconnectedExpireTimes, plySteamID64, nil )
             rawset( propData, plySteamID64, nil )
 
-            file.Delete( restorationDirectory .. "/" .. plySteamID64 .. ".json" )
+            fileDelete( restorationDirectory .. "/" .. plySteamID64 .. ".json" )
         end
     end
 
