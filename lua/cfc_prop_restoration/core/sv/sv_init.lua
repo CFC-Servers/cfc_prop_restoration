@@ -94,7 +94,7 @@ hook.Add( "CFC_Notifications_init", "CFC_PropRestore_CreateNotif", function()
 
     notif = CFCNotifications.new( "CFC_PropRestorePrompt", "Buttons", true )
     notif:SetTitle( "Restore Props" )
-    notif:SetText( "Restore props from previous server save?\n(You can also use the !restoreprops command at any time)" )
+    notif:SetText( "Restore props from previous server save?\n(Press the button or use the !restoreprops command)" )
     notif:AddButton( "Restore", Color( 0, 255, 0 ), "restore" )
     notif:SetDisplayTime( restorePromptDuration:GetFloat() )
     notif:SetTimed( true )
