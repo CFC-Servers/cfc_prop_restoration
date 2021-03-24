@@ -236,6 +236,10 @@ local function handleChatCommands( ply, text )
 
     if exp[1] == "!restoreprops" then
         if canRestoreProps( ply ) then
+            if notif then
+                notif:RemovePopups( ply )
+            end
+
             local data = propData[ply:SteamID()]
             if data == nil or table.IsEmpty( data ) then
                 ply:ChatPrint( "Couldn't find any props to restore." )
