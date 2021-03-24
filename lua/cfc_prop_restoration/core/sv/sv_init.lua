@@ -7,6 +7,7 @@ local disconnectedExpireTimes = {}
 local propData = {}
 local queue = {}
 local restorationDelays = {}
+local restorePromptDuration
 local restoreDelay = 90
 local nextSave = 0
 local notif
@@ -49,6 +50,18 @@ do
         )
     end
 
+    if not ConVarExists( "cfc_proprestore_notification_timeout" ) then
+        logger:debug( "Creating ConVar \"cfc_proprestore_notification_timeout\" because it does not exist." )
+
+        CreateConVar(
+            "cfc_proprestore_notification_timeout",
+            240,
+            FCVAR_ARCHIVE,
+            "How long (in seconds) the restore prompt notification will display for players when they join",
+            0
+        )
+    end
+
     if not file.Exists( restorationDirectory, "DATA" ) then
         logger:debug( "Creating " .. restorationDirectory .. " directory because it does not exist.")
         file.CreateDir( restorationDirectory )
@@ -56,6 +69,8 @@ do
 
     local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" ):GetInt()
     nextSave = CurTime() + autosaveDelay
+
+    restorePromptDuration = GetConVar( "cfc_proprestore_notification_timeout" )
 
     populateDisconnectedExpireTimes()
 end
@@ -79,9 +94,10 @@ hook.Add( "CFC_Notifications_init", "CFC_PropRestore_CreateNotif", function()
 
     notif = CFCNotifications.new( "CFC_PropRestorePrompt", "Buttons", true )
     notif:SetTitle( "Restore Props" )
-    notif:SetText( "Restore props from previous server save?" )
+    notif:SetText( "Restore props from previous server save?\n(You can also use the !restoreprops command at any time)" )
     notif:AddButton( "Restore", Color( 0, 255, 0 ), "restore" )
-    notif:SetTimed( false )
+    notif:SetDisplayTime( restorePromptDuration:GetFloat() )
+    notif:SetTimed( true )
     notif:SetIgnoreable( false )
 
     function notif:OnButtonPressed( ply, data )
