@@ -1,5 +1,7 @@
 require( "cfclogger" )
 
+CFC_PropRestore = CFC_PropRestore or {}
+
 local logger = CFCLogger( "Prop Restoration", "debug" )
 
 local restorationDirectory = "prop_restoration"
@@ -259,32 +261,38 @@ end
 
 hook.Add( "PlayerSay", "CFC_Restoration_PlayerSay", handleChatCommands )
 
+function CFC_PropRestore.SaveProps()
+    if not table.IsEmpty( queue ) then return end
+
+    logger:info( "Autosaving player props" )
+
+    local playersProps = getAllPlayerProps()
+
+    for _, ply in pairs( player.GetHumans() ) do
+
+        local propVelocities = getPropVelocities( playersProps[ply] )
+
+        local success, props = xpcall( ADInterface.copy, notifyOnError( ply ), ply )
+        success = success and props
+
+        if success and not table.IsEmpty( props ) and props ~= nil then
+            propData[ply:SteamID()] = props
+            addPropDataToQueue( ply, props )
+        end
+
+        restorePropVelocities( propVelocities )
+    end
+
+    local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" ):GetInt()
+    nextSave = time + autosaveDelay
+end
+
 timer.Create( "CFC_Restoration_Think", 5, 0, function()
     local time = CurTime()
 
     -- Autosaving props
-    if time >= nextSave and table.IsEmpty( queue ) then
-        logger:info( "Autosaving player props" )
-
-        local playersProps = getAllPlayerProps()
-
-        for _, ply in pairs( player.GetHumans() ) do
-
-            local propVelocities = getPropVelocities( playersProps[ply] )
-
-            local success, props = xpcall( ADInterface.copy, notifyOnError( ply ), ply )
-            success = success and props
-
-            if success and not table.IsEmpty( props ) and props ~= nil then
-                propData[ply:SteamID()] = props
-                addPropDataToQueue( ply, props )
-            end
-
-            restorePropVelocities( propVelocities )
-        end
-
-        local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" ):GetInt()
-        nextSave = time + autosaveDelay
+    if time >= nextSave then
+        CFC_PropRestore.SaveProps()
     end
 
     -- Deleting long disconnects
