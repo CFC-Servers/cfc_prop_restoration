@@ -293,7 +293,7 @@ timer.Create( "CFC_Restoration_Think", 5, 0, function()
     local time = CurTime()
 
     -- Autosaving props
-    if time >= nextSave and table.IsEmpty( queue ) then
+    if time >= nextSave then
         saveProps( time )
     end
 
