@@ -259,32 +259,42 @@ end
 
 hook.Add( "PlayerSay", "CFC_Restoration_PlayerSay", handleChatCommands )
 
+local function saveProps( time )
+    if not table.IsEmpty( queue ) then return end
+
+    time = time or CurTime()
+
+    logger:info( "Autosaving player props" )
+
+    local playersProps = getAllPlayerProps()
+
+    for _, ply in pairs( player.GetHumans() ) do
+
+        local propVelocities = getPropVelocities( playersProps[ply] )
+
+        local success, props = xpcall( ADInterface.copy, notifyOnError( ply ), ply )
+        success = success and props
+
+        if success and not table.IsEmpty( props ) and props ~= nil then
+            propData[ply:SteamID()] = props
+            addPropDataToQueue( ply, props )
+        end
+
+        restorePropVelocities( propVelocities )
+    end
+
+    local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" ):GetInt()
+    nextSave = time + autosaveDelay
+end
+
+hook.Add( "CFC_PropRestore_SaveProps", "CFC_PropRestore_SaveProps", saveProps )
+
 timer.Create( "CFC_Restoration_Think", 5, 0, function()
     local time = CurTime()
 
     -- Autosaving props
     if time >= nextSave and table.IsEmpty( queue ) then
-        logger:info( "Autosaving player props" )
-
-        local playersProps = getAllPlayerProps()
-
-        for _, ply in pairs( player.GetHumans() ) do
-
-            local propVelocities = getPropVelocities( playersProps[ply] )
-
-            local success, props = xpcall( ADInterface.copy, notifyOnError( ply ), ply )
-            success = success and props
-
-            if success and not table.IsEmpty( props ) and props ~= nil then
-                propData[ply:SteamID()] = props
-                addPropDataToQueue( ply, props )
-            end
-
-            restorePropVelocities( propVelocities )
-        end
-
-        local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" ):GetInt()
-        nextSave = time + autosaveDelay
+        saveProps( time )
     end
 
     -- Deleting long disconnects
