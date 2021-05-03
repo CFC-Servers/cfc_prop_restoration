@@ -287,7 +287,7 @@ local function saveProps( time )
     nextSave = time + autosaveDelay
 end
 
-hook.Add( "CFC_PropRestore_SaveProps", "CFC_PropRestore_SaveProps", saveProps )
+hook.Add( "CFC_DailyRestart_SoftRestart", "CFC_PropRestore_SaveProps", saveProps )
 
 timer.Create( "CFC_Restoration_Think", 5, 0, function()
     local time = CurTime()
