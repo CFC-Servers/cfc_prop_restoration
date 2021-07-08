@@ -155,6 +155,7 @@ end
 
 local function getPropVelocities( props )
     local velocities = {}
+    local angularRotations = {}
 
     if not props then return {} end
 
@@ -162,20 +163,32 @@ local function getPropVelocities( props )
         local propPhys = prop:GetPhysicsObject()
         if IsValid( propPhys ) then
             velocities[prop] = propPhys:GetVelocity()
+            angularRotations[prop] = propPhys:GetAngleVelocity()()
         end
     end
 
-    return velocities
+    return velocities, angularRotations
 end
 
 
-local function restorePropVelocities( props )
-    if not props then return end
-    for prop, vel in pairs( props ) do
-        local propPhys = prop:GetPhysicsObject()
+local function restorePropVelocities( velocities, angleRots )
+    if velocities then
+        for prop, vel in pairs( velocities ) do
+            local propPhys = prop:GetPhysicsObject()
 
-        if IsValid( propPhys ) then
-            propPhys:SetVelocity( vel )
+            if IsValid( propPhys ) then
+                propPhys:SetVelocity( vel )
+            end
+        end
+    end
+
+    if angleRots then
+        for prop, vel in pairs( angleRots ) do
+            local propPhys = prop:GetPhysicsObject()
+
+            if IsValid( propPhys ) then
+                propPhys:SetVelocity( vel )
+            end
         end
     end
 end
@@ -270,7 +283,7 @@ local function saveProps( time )
 
     for _, ply in pairs( player.GetHumans() ) do
 
-        local propVelocities = getPropVelocities( playersProps[ply] )
+        local propVelocities, propRotations = getPropVelocities( playersProps[ply] )
 
         local success, props = xpcall( ADInterface.copy, notifyOnError( ply ), ply )
         success = success and props
@@ -280,7 +293,7 @@ local function saveProps( time )
             addPropDataToQueue( ply, props )
         end
 
-        restorePropVelocities( propVelocities )
+        restorePropVelocities( propVelocities, propRotations )
     end
 
     local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" ):GetInt()
