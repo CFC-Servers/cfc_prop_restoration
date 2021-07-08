@@ -163,7 +163,7 @@ local function getPropVelocities( props )
         local propPhys = prop:GetPhysicsObject()
         if IsValid( propPhys ) then
             velocities[prop] = propPhys:GetVelocity()
-            angularRotations[prop] = propPhys:GetAngleVelocity()()
+            angularRotations[prop] = propPhys:GetAngleVelocity()
         end
     end
 
@@ -183,11 +183,11 @@ local function restorePropVelocities( velocities, angleRots )
     end
 
     if angleRots then
-        for prop, vel in pairs( angleRots ) do
+        for prop, rot in pairs( angleRots ) do
             local propPhys = prop:GetPhysicsObject()
 
             if IsValid( propPhys ) then
-                propPhys:SetVelocity( vel )
+                propPhys:SetAngleVelocity( rot )
             end
         end
     end
