@@ -186,7 +186,6 @@ local function getEntityRestorers( ents )
         end
     end
 
-    PrintTable( restorers )
     return restorers
 end
 
