@@ -11,6 +11,11 @@ local restorePromptDuration
 local restoreDelay = 90
 local nextSave = 0
 local notif
+local IsValid = IsValid
+local rawget = rawget
+local rawset = rawset
+local pcall = pcall
+local noop = function() end
 
 do
     local function populateDisconnectedExpireTimes()
@@ -100,7 +105,7 @@ hook.Add( "CFC_Notifications_init", "CFC_PropRestore_CreateNotif", function()
     notif:SetTimed( true )
     notif:SetIgnoreable( false )
 
-    function notif:OnButtonPressed( ply, data )
+    function notif:OnButtonPressed( ply )
         spawnInPlayerProps( ply )
     end
 end )
@@ -153,43 +158,44 @@ local function notifyOnError( ply )
     end
 end
 
-local function getPropVelocities( props )
-    local velocities = {}
-    local angularRotations = {}
+local function getEntityRestorers( ents )
+    if not ents then return {} end
+    local restorers = {}
+    local entCount = #ents
 
-    if not props then return {} end
+    for i = 1, entCount do
+        local ent = rawget( ents, i )
 
-    for _, prop in pairs( props ) do
-        local propPhys = prop:GetPhysicsObject()
-        if IsValid( propPhys ) then
-            velocities[prop] = propPhys:GetVelocity()
-            angularRotations[prop] = propPhys:GetAngleVelocity()
+        if IsValid( ent ) then
+            local physObj = ent:GetPhysicsObject()
+            physObj = IsValid( physObj ) and physObj
+
+            local velocity, angVelocity
+
+            if physObj then
+                velocity = physObj:GetVelocity()
+                angVelocity = physObj:GetAngleVelocity()
+            end
+
+            rawset( restorers, i, function()
+                physObj:SetVelocity( velocity )
+                physObj:SetAngleVelocity( angVelocity )
+            end )
+        else
+            rawset( restorers, i, noop )
         end
     end
 
-    return velocities, angularRotations
+    PrintTable( restorers )
+    return restorers
 end
 
+local function runRestorers( restorers )
+    if not restorers then return end
+    local restorerCount = #restorers
 
-local function restorePropVelocities( velocities, angleRots )
-    if velocities then
-        for prop, vel in pairs( velocities ) do
-            local propPhys = prop:GetPhysicsObject()
-
-            if IsValid( propPhys ) then
-                propPhys:SetVelocity( vel )
-            end
-        end
-    end
-
-    if angleRots then
-        for prop, rot in pairs( angleRots ) do
-            local propPhys = prop:GetPhysicsObject()
-
-            if IsValid( propPhys ) then
-                propPhys:SetAngleVelocity( rot )
-            end
-        end
+    for i = 1, restorerCount do
+        pcall( rawget( restorers, i ) )
     end
 end
 
@@ -283,7 +289,7 @@ local function saveProps( time )
 
     for _, ply in pairs( player.GetHumans() ) do
 
-        local propVelocities, propRotations = getPropVelocities( playersProps[ply] )
+        local propVelocities = getEntityRestorers( playersProps[ply] )
 
         local success, props = xpcall( ADInterface.copy, notifyOnError( ply ), ply )
         success = success and props
@@ -293,7 +299,7 @@ local function saveProps( time )
             addPropDataToQueue( ply, props )
         end
 
-        restorePropVelocities( propVelocities, propRotations )
+        runRestorers( propVelocities )
     end
 
     local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" ):GetInt()
