@@ -1,6 +1,6 @@
-require( "cfclogger" )
+require( "logger" )
 
-local logger = CFCLogger( "Prop Restoration", "debug" )
+local logger = Logger( "Prop Restoration", "debug" )
 
 local restorationDirectory = "prop_restoration"
 local disconnectedExpireTimes = {}
