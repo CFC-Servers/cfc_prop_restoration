@@ -1,21 +1,27 @@
+-- Handles the main interaction/operation
+
 require( "logger" )
 
 local logger = Logger( "Prop Restoration", "debug" )
+local noop = function() end
+
+CFCRestoration = {
+    logger = logger,
+
+    -- Mock this out, when notifs exist they'll update it
+    notif = {
+        Send = noop,
+        RemovePopups = noop
+    }
+}
 
 local restorationDirectory = "prop_restoration"
 local disconnectedExpireTimes = {}
-local propData = {}
-local queue = {}
+local playerData = {}
 local restorationDelays = {}
 local restorePromptDuration
 local restoreDelay = 90
 local nextSave = 0
-local notif
-local IsValid = IsValid
-local rawget = rawget
-local rawset = rawset
-local pcall = pcall
-local noop = function() end
 
 do
     local function populateDisconnectedExpireTimes()
@@ -31,42 +37,6 @@ do
         end
     end
 
-    if not ConVarExists( "cfc_proprestore_expire_delay" ) then
-        logger:debug( "Creating ConVar \"cfc_proprestore_expire_delay\" because it does not exist." )
-
-        CreateConVar(
-            "cfc_proprestore_expire_delay",
-            600,
-            FCVAR_ARCHIVE,
-            "Time (in seconds) for the player to reconnect before prop data is lost.",
-            0
-        )
-    end
-
-    if not ConVarExists( "cfc_proprestore_autosave_delay" ) then
-        logger:debug( "Creating ConVar \"cfc_proprestore_autosave_delay\" because it does not exist." )
-
-        CreateConVar(
-            "cfc_proprestore_autosave_delay",
-            180,
-            FCVAR_ARCHIVE,
-            "How often (in seconds) the server saves prop data",
-            0
-        )
-    end
-
-    if not ConVarExists( "cfc_proprestore_notification_timeout" ) then
-        logger:debug( "Creating ConVar \"cfc_proprestore_notification_timeout\" because it does not exist." )
-
-        CreateConVar(
-            "cfc_proprestore_notification_timeout",
-            240,
-            FCVAR_ARCHIVE,
-            "How long (in seconds) the restore prompt notification will display for players when they join",
-            0
-        )
-    end
-
     if not file.Exists( restorationDirectory, "DATA" ) then
         logger:debug( "Creating " .. restorationDirectory .. " directory because it does not exist.")
         file.CreateDir( restorationDirectory )
@@ -80,7 +50,7 @@ do
     populateDisconnectedExpireTimes()
 end
 
-local function canRestoreProps( ply )
+local function canRestorePlayerData( ply )
     if ( restorationDelays[ply:SteamID()] or 0 ) < CurTime() then
         return true
     end
@@ -88,60 +58,27 @@ local function canRestoreProps( ply )
     return false
 end
 
-local function spawnInPlayerProps( ply )
-    if not propData[ply:SteamID()] then return end
+function CFCRestoration.applyPlayerData( ply )
+    local data = playerData[ply:SteamID()]
+    if not data then return end
 
-    ADInterface.paste( ply, propData[ply:SteamID()] )
-end
-
-hook.Add( "CFC_Notifications_init", "CFC_PropRestore_CreateNotif", function()
-    logger:debug( "Creating notification object." )
-
-    notif = CFCNotifications.new( "CFC_PropRestorePrompt", "Buttons", true )
-    notif:SetTitle( "Restore Props" )
-    notif:SetText( "Restore props from previous server save?\n(Press the button or use the !restoreprops command)" )
-    notif:AddButton( "Restore", Color( 0, 255, 0 ), "restore" )
-    notif:SetDisplayTime( restorePromptDuration:GetFloat() )
-    notif:SetTimed( true )
-    notif:SetIgnoreable( false )
-
-    function notif:OnButtonPressed( ply )
-        spawnInPlayerProps( ply )
+    local propData = data.props
+    if propData then
+        ADInterface.paste( ply, propData )
     end
-end )
+
+    local other = data.other
+    if other then
+        hook.Run( "CFC_Restoration_ApplyPlayerData", data.other )
+    end
+end
 
 local function addPropDataToQueue( ply, data )
-    queue[ply:SteamID()] = data
+    saveQueue[ply:SteamID()] = data
 end
 
-local function processQueueData()
-    local steamid, data = next( queue )
-    if not steamid or not data then return end
-
-    logger:debug( "Handling queue for " .. steamid )
-
-    local steamid64 = util.SteamIDTo64( steamid )
-    local encodeData = util.TableToJSON( data )
-    local fileName = restorationDirectory .. "/" .. steamid64 .. ".json"
-
-    file.Write( fileName, encodeData )
-
-    local fileSize = string.NiceSize( file.Size( fileName, "DATA" ) )
-    logger:info( "Saving prop data to " .. fileName .. " (" .. fileSize .. ")" )
-
-    queue[steamid] = nil
-end
-
-local function getPropsFromFile( ply )
-    if propData[ply:SteamID()] then return end
-
-    local fileName = restorationDirectory .. "/" .. ply:SteamID64() .. ".json"
-    if not file.Exists( fileName, "DATA" ) then return end
-
-    local contents = file.Read( fileName, "DATA" )
-    local decodeData = util.JSONToTable( contents )
-
-    propData[ply:SteamID()] = decodeData
+local function getDataForPly( ply )
+    return Storage.readDataForPly( ply )
 end
 
 local function sendRestorationNotification( ply )
@@ -154,74 +91,19 @@ local function notifyOnError( ply )
         local message = "ERROR: " .. err
 
         logger:error( err )
-        CFCNotifications.sendSimple( "CFC_PropRestoreError", "Prop Restoration error", message, ply )
     end
 end
 
-local function getEntityRestorers( ents )
-    if not ents then return {} end
-    local restorers = {}
-    local entCount = #ents
-
-    for i = 1, entCount do
-        local ent = rawget( ents, i )
-
-        if IsValid( ent ) then
-            local physObj = ent:GetPhysicsObject()
-            physObj = IsValid( physObj ) and physObj
-
-            local velocity, angVelocity
-
-            if physObj then
-                velocity = physObj:GetVelocity()
-                angVelocity = physObj:GetAngleVelocity()
-            end
-
-            rawset( restorers, i, function()
-                physObj:SetVelocity( velocity )
-                physObj:SetAngleVelocity( angVelocity )
-            end )
-        else
-            rawset( restorers, i, noop )
-        end
-    end
-
-    return restorers
-end
-
-local function runRestorers( restorers )
-    if not restorers then return end
-    local restorerCount = #restorers
-
-    for i = 1, restorerCount do
-        pcall( rawget( restorers, i ) )
-    end
-end
-
-local function getAllPlayerProps()
-    local playerProps = {}
-    for _, prop in pairs( ents.GetAll() ) do
-        if IsValid( prop ) then
-            local propOwner = prop:CPPIGetOwner()
-
-            if IsValid( propOwner ) then
-                playerProps[propOwner] = playerProps[propOwner] or {}
-                table.insert( playerProps[propOwner], prop )
-            end
-        end
-    end
-    return playerProps
-end
 
 local function handleReconnect( ply )
-    local plySID = ply:SteamID()
+    local plySteamID = ply:SteamID()
 
-    getPropsFromFile( ply )
+    readDataForPly( ply )
 
-    if not propData[plySID] then return end
-    disconnectedExpireTimes[plySID] = nil
+    if not playerData[plySteamID] then return end
+    disconnectedExpireTimes[plySteamID] = nil
 
-    logger:info( "Sending notification to (" .. ply:SteamID() .. ")" )
+    logger:info( "Sending notification to (" .. plySteamID .. ")" )
 
     timer.Simple( 5, function()
         sendRestorationNotification( ply )
@@ -231,15 +113,16 @@ end
 hook.Add( "PlayerInitialSpawn", "CFC_Restoration_Reconnect", handleReconnect )
 
 local function handleDisconnect( ply )
-    local plySID = ply:SteamID()
+    local plySteamID = ply:SteamID()
     local expireTime = GetConVar( "cfc_proprestore_expire_delay" ):GetInt()
+
     local props = ADInterface.copy( ply )
     if not props then return end
 
-    disconnectedExpireTimes[plySID] = CurTime() + expireTime
+    disconnectedExpireTimes[plySteamID] = CurTime() + expireTime
 
-    if not table.IsEmpty( props ) and props ~= nil then
-        propData[plySID] = props
+    if props and not table.IsEmpty( props ) then
+        playerData[plySteamID] = props
     end
 
     logger:info( "Handling (" .. ply:SteamID() .. ")'s props." )
@@ -250,69 +133,71 @@ end
 hook.Add( "PlayerDisconnected", "CFC_Restoration_Disconnect", handleDisconnect )
 
 local function handleChatCommands( ply, text )
-    local exp = string.Explode( " ", text )
+    text = string.Replace( text, " ", "" )
+    if not string.StartWith( text, "!restoreprops" ) then return end
 
-    if exp[1] == "!restoreprops" then
-        if canRestoreProps( ply ) then
-            if notif then
-                notif:RemovePopups( ply )
-            end
+    CFCRestoration.notif:RemovePopups( ply )
 
-            local data = propData[ply:SteamID()]
-            if data == nil or table.IsEmpty( data ) then
-                ply:ChatPrint( "Couldn't find any props to restore." )
-            else
-                spawnInPlayerProps( ply )
+    local data = playerData[ply:SteamID()]
 
-                restorationDelays[ply:SteamID()] = CurTime() + restoreDelay
-                ply:ChatPrint( "Spawninging in your props...")
-            end
-        else
-            ply:ChatPrint( "You must wait " .. math.Round( restorationDelays[ply:SteamID()] - CurTime(), 0 ) .. " more seconds before using this again." )
-        end
+    if data == nil or table.IsEmpty( data ) then
+        ply:ChatPrint( "Couldn't find anything to restore." )
+    else
+        CFCRestoration.applyPlayerData( ply )
 
-        return ""
+        restorationDelays[ply:SteamID()] = CurTime() + restoreDelay
+        ply:ChatPrint( "Spawning in your props...")
     end
+
+    return ""
 end
 
 hook.Add( "PlayerSay", "CFC_Restoration_PlayerSay", handleChatCommands )
 
-local function saveProps( time )
-    if not table.IsEmpty( queue ) then return end
+local function buildPlayerData( ply, playersProps )
+    local plyData = {
+        propData = {}
+    }
+
+    local propVelocities = getEntityRestorers( playersProps )
+
+    local success, props = xpcall( ADInterface.copy, notifyOnError( ply ), ply )
+    success = success and props
+
+    if success and props and not table.IsEmpty( props ) then
+        plyData.propData = props
+        addPropDataToQueue( ply, props )
+    end
+
+    runRestorers( propVelocities )
+end
+
+local function saveData( time )
+    if not table.IsEmpty( saveQueue ) then return end
 
     time = time or CurTime()
 
-    logger:info( "Autosaving player props" )
+    logger:info( "Autosaving player data" )
 
     local playersProps = getAllPlayerProps()
 
     for _, ply in pairs( player.GetHumans() ) do
-
-        local propVelocities = getEntityRestorers( playersProps[ply] )
-
-        local success, props = xpcall( ADInterface.copy, notifyOnError( ply ), ply )
-        success = success and props
-
-        if success and not table.IsEmpty( props ) and props ~= nil then
-            propData[ply:SteamID()] = props
-            addPropDataToQueue( ply, props )
-        end
-
-        runRestorers( propVelocities )
+        local data = buildPlayerData( ply, playersProps[ply] )
+        playerData[ply:SteamID()] = data
     end
 
     local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" ):GetInt()
     nextSave = time + autosaveDelay
 end
 
-hook.Add( "CFC_DailyRestart_SoftRestart", "CFC_PropRestore_SaveProps", saveProps )
+hook.Add( "CFC_DailyRestart_SoftRestart", "CFC_PropRestore_SaveProps", saveData )
 
 timer.Create( "CFC_Restoration_Think", 5, 0, function()
     local time = CurTime()
 
     -- Autosaving props
     if time >= nextSave then
-        saveProps( time )
+        saveData( time )
     end
 
     -- Deleting long disconnects
@@ -322,7 +207,7 @@ timer.Create( "CFC_Restoration_Think", 5, 0, function()
             local steamid64 = util.SteamIDTo64( steamid )
 
             disconnectedExpireTimes[steamid] = nil
-            propData[steamid] = nil
+            playerData[steamid] = nil
 
             file.Delete( restorationDirectory .. "/" .. steamid64 .. ".json" )
         end
