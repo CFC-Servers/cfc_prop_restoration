@@ -1,15 +1,15 @@
 -- Handles the storage of the data
 
-CFCRestoration.Storage = {
+Phoenix.Storage = {
     saveQueue = {},
     saveDir = ""
 }
 
-local Storage = CFCRestoration.Storage
+local Storage = Phoenix.Storage
 
 function Storage:ReadDataForPlayer( ply )
     -- TODO: Do this check on the calling side
-    if self.playerData[ply:steamID()] then return end
+    if self.playerData[ply:SteamID()] then return end
 
     local fileName = self.saveDir .. "/" .. ply:SteamID64() .. ".json"
     if not file.Exists( fileName, "DATA" ) then return end

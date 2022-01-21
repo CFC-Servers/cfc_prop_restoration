@@ -2,10 +2,10 @@
 
 require( "logger" )
 
-local logger = Logger( "Prop Restoration", "debug" )
+local logger = Logger( "Phoenix", "debug" )
 local noop = function() end
 
-CFCRestoration = {
+Phoenix = {
     logger = logger,
 
     -- Mock this out, when notifs exist they'll update it
@@ -15,7 +15,7 @@ CFCRestoration = {
     }
 }
 
-local restorationDirectory = "prop_restoration"
+local restorationDirectory = "phoenix"
 local disconnectedExpireTimes = {}
 local playerData = {}
 local restorationDelays = {}
@@ -26,7 +26,7 @@ local nextSave = 0
 do
     local function populateDisconnectedExpireTimes()
         local files, _ = file.Find( restorationDirectory .. "/*.json", "DATA" )
-        local expireTime = GetConVar( "cfc_proprestore_expire_delay" ):GetInt()
+        local expireTime = GetConVar( "cfc_phoenix_expire_delay" ):GetInt()
 
         for _, fileName in pairs( files ) do
             local fname = string.sub( fileName, 1, -5 )
@@ -42,10 +42,10 @@ do
         file.CreateDir( restorationDirectory )
     end
 
-    local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" ):GetInt()
+    local autosaveDelay = GetConVar( "cfc_phoenix_autosave_delay" ):GetInt()
     nextSave = CurTime() + autosaveDelay
 
-    restorePromptDuration = GetConVar( "cfc_proprestore_notification_timeout" )
+    restorePromptDuration = GetConVar( "cfc_phoenix_notification_timeout" )
 
     populateDisconnectedExpireTimes()
 end
@@ -58,7 +58,7 @@ local function canRestorePlayerData( ply )
     return false
 end
 
-function CFCRestoration.applyPlayerData( ply )
+function Phoenix.applyPlayerData( ply )
     local data = playerData[ply:SteamID()]
     if not data then return end
 
@@ -69,7 +69,7 @@ function CFCRestoration.applyPlayerData( ply )
 
     local other = data.other
     if other then
-        hook.Run( "CFC_Restoration_ApplyPlayerData", data.other )
+        hook.Run( "CFC_Phoenix_ApplyPlayerData", data.other )
     end
 end
 
@@ -110,11 +110,11 @@ local function handleReconnect( ply )
     end )
 end
 
-hook.Add( "PlayerInitialSpawn", "CFC_Restoration_Reconnect", handleReconnect )
+hook.Add( "PlayerInitialSpawn", "CFC_Phoenix_Reconnect", handleReconnect )
 
 local function handleDisconnect( ply )
     local plySteamID = ply:SteamID()
-    local expireTime = GetConVar( "cfc_proprestore_expire_delay" ):GetInt()
+    local expireTime = GetConVar( "cfc_phoenix_expire_delay" ):GetInt()
 
     local props = ADInterface.copy( ply )
     if not props then return end
@@ -130,20 +130,20 @@ local function handleDisconnect( ply )
     addPropDataToQueue( ply, props )
 end
 
-hook.Add( "PlayerDisconnected", "CFC_Restoration_Disconnect", handleDisconnect )
+hook.Add( "PlayerDisconnected", "CFC_Phoenix_Disconnect", handleDisconnect )
 
 local function handleChatCommands( ply, text )
     text = string.Replace( text, " ", "" )
     if not string.StartWith( text, "!restoreprops" ) then return end
 
-    CFCRestoration.notif:RemovePopups( ply )
+    Phoenix.notif:RemovePopups( ply )
 
     local data = playerData[ply:SteamID()]
 
     if data == nil or table.IsEmpty( data ) then
         ply:ChatPrint( "Couldn't find anything to restore." )
     else
-        CFCRestoration.applyPlayerData( ply )
+        Phoenix.applyPlayerData( ply )
 
         restorationDelays[ply:SteamID()] = CurTime() + restoreDelay
         ply:ChatPrint( "Spawning in your props...")
@@ -152,7 +152,7 @@ local function handleChatCommands( ply, text )
     return ""
 end
 
-hook.Add( "PlayerSay", "CFC_Restoration_PlayerSay", handleChatCommands )
+hook.Add( "PlayerSay", "CFC_Phoenix_PlayerSay", handleChatCommands )
 
 local function buildPlayerData( ply, playersProps )
     local plyData = {
@@ -190,9 +190,10 @@ local function saveData( time )
     nextSave = time + autosaveDelay
 end
 
-hook.Add( "CFC_DailyRestart_SoftRestart", "CFC_PropRestore_SaveProps", saveData )
+-- TODO: Move this elsewhere
+hook.Add( "CFC_DailyRestart_SoftRestart", "CFC_Phoenix_SaveProps", saveData )
 
-timer.Create( "CFC_Restoration_Think", 5, 0, function()
+timer.Create( "CFC_Phoenix_Think", 5, 0, function()
     local time = CurTime()
 
     -- Autosaving props

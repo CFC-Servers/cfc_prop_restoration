@@ -1,4 +1,4 @@
-hook.Add( "InitPostEntity", "CFC_Restoration_Ready", function()
-    net.Start( "CFC_Restoration_Ready" )
+hook.Add( "InitPostEntity", "CFC_Phoenix_Ready", function()
+    net.Start( "CFC_Phoenix_Ready" )
     net.SendToServer()
 end )

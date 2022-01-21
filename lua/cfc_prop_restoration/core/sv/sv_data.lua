@@ -1,10 +1,10 @@
 -- Handles interaction with the actual data
 
-CFCRestoration.Data = {
+Phoenix.Data = {
     playerData = {}
 }
 
-local Data = CFCRestoration.Data
+local Data = Phoenix.Data
 
 function Data:ProcessSaveQueue()
     local steamID, data = next( self.saveQueue )
