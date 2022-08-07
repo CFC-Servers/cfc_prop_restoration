@@ -3,7 +3,6 @@
     It has been modified to extract simple copying and pasting into a global table.
     Also includes changes to the styling to fit CFC's standards.
 ]]
-
 ADInterface = {}
 
 local areacopy_classblacklist = {
@@ -34,11 +33,9 @@ local phys_constraint_system_types = {
 
 local function groupConstraintOrder( ply, constraints )
     --First seperate the nocollides, sorted, and unsorted constraints
-    local nocollide, sorted, unsorted = {}, {}, {}
-    for k, v in pairs( constraints ) do
-        if v.Type == "NoCollide" then
-            nocollide[#nocollide + 1] = v
-        elseif phys_constraint_system_types[v.Type] then
+    local sorted, unsorted = {}, {}
+    for _, v in pairs( constraints ) do
+        if phys_constraint_system_types[v.Type] then
             sorted[#sorted + 1] = v
         else
             unsorted[#unsorted + 1] = v
@@ -47,6 +44,7 @@ local function groupConstraintOrder( ply, constraints )
 
     local sortingSystems = {}
     local fullSystems = {}
+
     local function buildSystems( input )
         while next( input ) ~= nil do
             for k, v in pairs( input ) do
@@ -57,10 +55,12 @@ local function groupConstraintOrder( ply, constraints )
                                 for y = 1, 4 do
                                     if target.Entity[y] and v.Entity[x].Index == target.Entity[y].Index then
                                         system[#system + 1] = v
+
                                         if #system == 100 then
                                             fullSystems[#fullSystems + 1] = system
                                             table.remove( sortingSystems, systemi )
                                         end
+
                                         input[k] = nil
                                         goto super_loopbreak
                                     end
@@ -73,17 +73,17 @@ local function groupConstraintOrder( ply, constraints )
 
             --Normally skipped by the goto unless no cluster is found. If so, make a new one.
             local k = next( input )
-            sortingSystems[#sortingSystems + 1] = { input[k] }
-            input[k] = nil
 
-            ::super_loopbreak::
+            sortingSystems[#sortingSystems + 1] = { input[k] }
+
+            input[k] = nil
+            :: super_loopbreak ::
         end
     end
 
     buildSystems( sorted )
-    buildSystems( nocollide )
-
     local ret = {}
+
     for _, system in pairs( fullSystems ) do
         for _, v in pairs( system ) do
             ret[#ret + 1] = v
@@ -123,9 +123,9 @@ local function copyPlayerProps( ply )
     headEnt.Index = ent:EntIndex()
     headEnt.Pos = ent:GetPos()
 
-    local entities, constraints = AdvDupe2.duplicator.AreaCopy( entities, headEnt.Pos, true )
+    local dupeEntities, constraints = AdvDupe2.duplicator.AreaCopy( entities, headEnt.Pos, true )
 
-    return { entities, constraints, headEnt }
+    return { dupeEntities, constraints, headEnt }
 end
 
 local function pastePlayerProps( ply, data )
@@ -139,8 +139,8 @@ local function pastePlayerProps( ply, data )
     ply.AdvDupe2.HeadEnt = headEnt
     ply.AdvDupe2.Entities = entities
     ply.AdvDupe2.Constraints = groupConstraintOrder( ply, constraints )
-
     ply.AdvDupe2.Pasting = true
+
     AdvDupe2.InitPastingQueue( ply, nil, nil, ply.AdvDupe2.HeadEnt.Pos, true, true, false, true )
 end
 
