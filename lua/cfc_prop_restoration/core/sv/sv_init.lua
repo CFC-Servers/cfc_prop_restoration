@@ -127,7 +127,7 @@ local function processQueueData()
     file.Write( fileName, encodeData )
 
     local fileSize = string.NiceSize( file.Size( fileName, "DATA" ) )
-    logger:info( "Saving prop data to " .. fileName .. " (" .. fileSize .. ")" )
+    logger:debug( "Saving prop data to " .. fileName .. " (" .. fileSize .. ")" )
 
     queue[steamid] = nil
 end
@@ -242,7 +242,7 @@ local function handleDisconnect( ply )
         propData[plySID] = props
     end
 
-    logger:info( "Handling (" .. ply:SteamID() .. ")'s props." )
+    logger:debug( "Handling (" .. ply:SteamID() .. ")'s props." )
 
     addPropDataToQueue( ply, props )
 end
@@ -282,7 +282,7 @@ local function saveProps( time )
 
     time = time or CurTime()
 
-    logger:info( "Autosaving player props" )
+    logger:debug( "Autosaving player props" )
 
     local playersProps = getAllPlayerProps()
 
@@ -318,7 +318,7 @@ timer.Create( "CFC_Restoration_Think", 5, 0, function()
     -- Deleting long disconnects
     for steamid, plyExpireTime in pairs( disconnectedExpireTimes ) do
         if time >= plyExpireTime then
-            logger:info( "Deleting entry for SteamID: " .. steamid )
+            logger:debug( "Deleting entry for SteamID: " .. steamid )
             local steamid64 = util.SteamIDTo64( steamid )
 
             disconnectedExpireTimes[steamid] = nil
