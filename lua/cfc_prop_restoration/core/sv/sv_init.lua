@@ -1,6 +1,6 @@
 require( "logger" )
 
-local logger = Logger( "Prop Restoration", "debug" )
+local logger = Logger( "Prop Restoration" )
 
 local restorationDirectory = "prop_restoration"
 local disconnectedExpireTimes = {}
