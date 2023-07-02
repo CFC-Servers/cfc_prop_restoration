@@ -144,5 +144,5 @@ local function pastePlayerProps( ply, data )
     AdvDupe2.InitPastingQueue( ply, nil, nil, ply.AdvDupe2.HeadEnt.Pos, true, true, false, true )
 end
 
-ADInterface.copy = copyPlayerProps
+ADInterface.copy= copyPlayerProps
 ADInterface.paste = pastePlayerProps

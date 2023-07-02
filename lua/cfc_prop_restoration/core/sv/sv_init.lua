@@ -118,7 +118,9 @@ local function processQueueData()
     local steamid, data = next( queue )
     if not steamid or not data then return end
 
+    local ply = player.GetBySteamID( steamid )
     logger:debug( "Handling queue for " .. steamid )
+    hook.Run( "CFC_PropRestore_SavingPlayer", ply )
 
     local steamid64 = util.SteamIDTo64( steamid )
     local encodeData = util.TableToJSON( data )
@@ -130,6 +132,7 @@ local function processQueueData()
     logger:debug( "Saving prop data to " .. fileName .. " (" .. fileSize .. ")" )
 
     queue[steamid] = nil
+    hook.Run( "CFC_PropRestore_SavingPlayerFinished", ply )
 end
 
 local function getPropsFromFile( ply )
