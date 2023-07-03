@@ -118,9 +118,7 @@ local function processQueueData()
     local steamid, data = next( queue )
     if not steamid or not data then return end
 
-    local ply = player.GetBySteamID( steamid )
     logger:debug( "Handling queue for " .. steamid )
-    hook.Run( "CFC_PropRestore_SavingPlayer", ply )
 
     local steamid64 = util.SteamIDTo64( steamid )
     local encodeData = util.TableToJSON( data )
@@ -132,7 +130,6 @@ local function processQueueData()
     logger:debug( "Saving prop data to " .. fileName .. " (" .. fileSize .. ")" )
 
     queue[steamid] = nil
-    hook.Run( "CFC_PropRestore_SavingPlayerFinished", ply )
 end
 
 local function getPropsFromFile( ply )
@@ -290,6 +287,7 @@ local function saveProps( time )
     local playersProps = getAllPlayerProps()
 
     for _, ply in pairs( player.GetHumans() ) do
+        hook.Run( "CFC_PropRestore_SavingPlayer", ply )
 
         local propVelocities = getEntityRestorers( playersProps[ply] )
 
@@ -302,6 +300,7 @@ local function saveProps( time )
         end
 
         runRestorers( propVelocities )
+        hook.Run( "CFC_PropRestore_SavingPlayerFinished", ply )
     end
 
     local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" ):GetInt()
