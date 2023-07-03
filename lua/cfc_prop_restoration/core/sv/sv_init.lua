@@ -290,7 +290,6 @@ local function saveProps( time )
         hook.Run( "CFC_PropRestore_SavingPlayer", ply )
 
         local propVelocities = getEntityRestorers( playersProps[ply] )
-
         local success, props = xpcall( ADInterface.copy, notifyOnError( ply ), ply )
         success = success and props
 
