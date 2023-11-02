@@ -139,6 +139,7 @@ local function pastePlayerProps( ply, data )
     ply.AdvDupe2.HeadEnt = headEnt
     ply.AdvDupe2.Entities = entities
     ply.AdvDupe2.Constraints = groupConstraintOrder( ply, constraints )
+    ply.AdvDupe2.Revision = AdvDupe2.CodecRevision
 
     ply.AdvDupe2.Pasting = true
     AdvDupe2.InitPastingQueue( ply, nil, nil, ply.AdvDupe2.HeadEnt.Pos, true, true, false, true )
