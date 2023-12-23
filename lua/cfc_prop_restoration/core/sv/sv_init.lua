@@ -159,7 +159,7 @@ local function getEntityRestorers( ents )
 
         if IsValid( ent ) then
             local physObj = ent:GetPhysicsObject()
-            if IsValid( physObj ) and not physObj:IsMoveable() then
+            if IsValid( physObj ) and not physObj:IsAsleep() then
                 local velocity, angVelocity
                 if physObj then
                     velocity = physObj:GetVelocity()
