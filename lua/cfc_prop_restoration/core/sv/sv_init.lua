@@ -296,7 +296,7 @@ local function handleChatCommands( ply, text )
     if command == "!proprestoresave" then
         if ply:IsAdmin() then
             saveProps()
-            ply:ChatPrint( "Saved props." )
+            ply:ChatPrint( "Saved everyones props." )
         end
 
         return ""
