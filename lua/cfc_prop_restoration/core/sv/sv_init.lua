@@ -68,7 +68,7 @@ do
     end
 
     if not file.Exists( restorationDirectory, "DATA" ) then
-        logger:debug( "Creating " .. restorationDirectory .. " directory because it does not exist.")
+        logger:debug( "Creating " .. restorationDirectory .. " directory because it does not exist." )
         file.CreateDir( restorationDirectory )
     end
 
