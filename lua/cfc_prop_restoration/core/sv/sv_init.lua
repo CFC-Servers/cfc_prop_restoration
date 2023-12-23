@@ -8,7 +8,7 @@ local propData = {}
 local queue = {}
 local restorationDelays = {}
 local restorePromptDuration
-local restoreDelay = 90
+local restoreDelay = 3
 local nextSave = 0
 local notif
 local IsValid = IsValid
@@ -91,7 +91,7 @@ end
 local function spawnInPlayerProps( ply )
     if not propData[ply:SteamID()] then return end
 
-    ADInterface.paste( ply, propData[ply:SteamID()] )
+    PropRestoration.Paste( ply, propData[ply:SteamID()] )
 end
 
 hook.Add( "CFC_Notifications_init", "CFC_PropRestore_CreateNotif", function()
@@ -149,15 +149,6 @@ local function sendRestorationNotification( ply )
     notif:Send( ply )
 end
 
-local function notifyOnError( ply )
-    return function( err )
-        local message = "ERROR: " .. err
-
-        logger:error( err )
-        CFCNotifications.sendSimple( "CFC_PropRestoreError", "Prop Restoration error", message, ply )
-    end
-end
-
 local function getEntityRestorers( ents )
     if not ents then return {} end
     local restorers = {}
@@ -168,19 +159,18 @@ local function getEntityRestorers( ents )
 
         if IsValid( ent ) then
             local physObj = ent:GetPhysicsObject()
-            physObj = IsValid( physObj ) and physObj
+            if IsValid( physObj ) and not physObj:IsMoveable() then
+                local velocity, angVelocity
+                if physObj then
+                    velocity = physObj:GetVelocity()
+                    angVelocity = physObj:GetAngleVelocity()
+                end
 
-            local velocity, angVelocity
-
-            if physObj then
-                velocity = physObj:GetVelocity()
-                angVelocity = physObj:GetAngleVelocity()
+                rawset( restorers, i, function()
+                    physObj:SetVelocity( velocity )
+                    physObj:SetAngleVelocity( angVelocity )
+                end )
             end
-
-            rawset( restorers, i, function()
-                physObj:SetVelocity( velocity )
-                physObj:SetAngleVelocity( angVelocity )
-            end )
         else
             rawset( restorers, i, noop )
         end
@@ -230,53 +220,6 @@ end
 
 hook.Add( "PlayerInitialSpawn", "CFC_Restoration_Reconnect", handleReconnect )
 
-local function handleDisconnect( ply )
-    local plySID = ply:SteamID()
-    local expireTime = GetConVar( "cfc_proprestore_expire_delay" ):GetInt()
-    local props = ADInterface.copy( ply )
-    if not props then return end
-
-    disconnectedExpireTimes[plySID] = CurTime() + expireTime
-
-    if not table.IsEmpty( props ) and props ~= nil then
-        propData[plySID] = props
-    end
-
-    logger:debug( "Handling (" .. ply:SteamID() .. ")'s props." )
-
-    addPropDataToQueue( ply, props )
-end
-
-hook.Add( "PlayerDisconnected", "CFC_Restoration_Disconnect", handleDisconnect )
-
-local function handleChatCommands( ply, text )
-    local exp = string.Explode( " ", text )
-
-    if exp[1] == "!restoreprops" then
-        if canRestoreProps( ply ) then
-            if notif then
-                notif:RemovePopups( ply )
-            end
-
-            local data = propData[ply:SteamID()]
-            if data == nil or table.IsEmpty( data ) then
-                ply:ChatPrint( "Couldn't find any props to restore." )
-            else
-                spawnInPlayerProps( ply )
-
-                restorationDelays[ply:SteamID()] = CurTime() + restoreDelay
-                ply:ChatPrint( "Spawninging in your props...")
-            end
-        else
-            ply:ChatPrint( "You must wait " .. math.Round( restorationDelays[ply:SteamID()] - CurTime(), 0 ) .. " more seconds before using this again." )
-        end
-
-        return ""
-    end
-end
-
-hook.Add( "PlayerSay", "CFC_Restoration_PlayerSay", handleChatCommands )
-
 local function saveProps( time )
     if not table.IsEmpty( queue ) then return end
 
@@ -290,12 +233,11 @@ local function saveProps( time )
         hook.Run( "CFC_PropRestore_SavingPlayer", ply )
 
         local propVelocities = getEntityRestorers( playersProps[ply] )
-        local success, props = xpcall( ADInterface.copy, notifyOnError( ply ), ply )
-        success = success and props
+        local copyObj = PropRestoration.Copy( ply )
 
-        if success and not table.IsEmpty( props ) and props ~= nil then
-            propData[ply:SteamID()] = props
-            addPropDataToQueue( ply, props )
+        if copyObj then
+            propData[ply:SteamID()] = copyObj
+            addPropDataToQueue( ply, copyObj )
         end
 
         runRestorers( propVelocities )
@@ -307,6 +249,61 @@ local function saveProps( time )
 end
 
 hook.Add( "CFC_DailyRestart_SoftRestart", "CFC_PropRestore_SaveProps", saveProps )
+
+local function handleDisconnect( ply )
+    local plySID = ply:SteamID()
+    local expireTime = GetConVar( "cfc_proprestore_expire_delay" ):GetInt()
+    local copyObj = PropRestoration.Copy( ply )
+    if not copyObj then return end
+
+    disconnectedExpireTimes[plySID] = CurTime() + expireTime
+
+    propData[plySID] = props
+
+    logger:debug( "Handling (" .. ply:SteamID() .. ")'s props." )
+
+    addPropDataToQueue( ply, props )
+end
+
+hook.Add( "PlayerDisconnected", "CFC_Restoration_Disconnect", handleDisconnect )
+
+local function handleChatCommands( ply, text )
+    local exp = string.Explode( " ", text )
+    local command = exp[1]
+
+    if command == "!restoreprops" or command == "!proprestore" then
+        if canRestoreProps( ply ) then
+            if notif then
+                notif:RemovePopups( ply )
+            end
+
+            local data = propData[ply:SteamID()]
+            if data == nil or table.IsEmpty( data ) then
+                ply:ChatPrint( "Couldn't find any props to restore." )
+            else
+                spawnInPlayerProps( ply )
+
+                restorationDelays[ply:SteamID()] = CurTime() + restoreDelay
+                ply:ChatPrint( "Spawning in your props..." )
+            end
+        else
+            ply:ChatPrint( "You must wait " .. math.Round( restorationDelays[ply:SteamID()] - CurTime(), 0 ) .. " more seconds before using this again." )
+        end
+
+        return ""
+    end
+
+    if command == "!proprestoresave" then
+        if ply:IsAdmin() then
+            saveProps()
+            ply:ChatPrint( "Saved props." )
+        end
+
+        return ""
+    end
+end
+
+hook.Add( "PlayerSay", "CFC_Restoration_PlayerSay", handleChatCommands )
 
 timer.Create( "CFC_Restoration_Think", 5, 0, function()
     local time = CurTime()
