@@ -37,6 +37,8 @@ function PropRestoration.Paste( ply, copyObj )
     local entities = copyObj.entities
     local constraints = copyObj.constraints
 
+    local prePaste = table.Copy( ply.AdvDupe2 )
+
     ply.AdvDupe2.Entities = entities
     ply.AdvDupe2.Constraints = constraints
     ply.AdvDupe2.Position = copyPos
@@ -48,4 +50,6 @@ function PropRestoration.Paste( ply, copyObj )
     ply.AdvDupe2.Revision = 5
 
     AdvDupe2.InitPastingQueue( ply, ply.AdvDupe2.Position, ply.AdvDupe2.Angle, nil, true, true, true, false )
+
+    ply.AdvDupe2 = prePaste
 end
