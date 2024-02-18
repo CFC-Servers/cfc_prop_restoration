@@ -265,7 +265,7 @@ local function handleChatCommands( ply, text )
                 spawnInPlayerProps( ply )
 
                 restorationDelays[ply:SteamID()] = CurTime() + restoreDelay
-                ply:ChatPrint( "Spawninging in your props...")
+                ply:ChatPrint( "Spawninginginging in your props...")
             end
         else
             ply:ChatPrint( "You must wait " .. math.Round( restorationDelays[ply:SteamID()] - CurTime(), 0 ) .. " more seconds before using this again." )
