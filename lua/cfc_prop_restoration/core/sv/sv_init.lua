@@ -11,8 +11,9 @@ local restorePromptDuration
 local restoreDelay = 3
 local nextSave = 0
 local notif
-local IsValid = IsValid
 local noop = function() end
+
+local IsValid = IsValid
 
 CreateConVar( "cfc_proprestore_expire_delay", "600", FCVAR_ARCHIVE, "Time (in seconds) for the player to reconnect before prop data is lost.", 0 )
 CreateConVar( "cfc_proprestore_autosave_delay", "180", FCVAR_ARCHIVE, "How often (in seconds) the server saves prop data", 0 )
@@ -85,9 +86,8 @@ local function processQueueData()
 
     logger:debug( "Handling queue for " .. steamID64 )
 
-    local steamid64 = util.SteamIDTo64( steamID64 )
     local encodeData = util.TableToJSON( data )
-    local fileName = restorationDirectory .. "/" .. steamid64 .. ".json"
+    local fileName = restorationDirectory .. "/" .. steamID64 .. ".json"
 
     file.Write( fileName, encodeData )
 
@@ -154,18 +154,23 @@ local function runRestorers( restorers )
     end
 end
 
-local function getAllPlayerProps()
+--- Get all props in the server and organize them by player
+--- Optionally, only get the props for a specific player
+--- @param only? Entity
+local function getPlayerProps( only )
     local playerProps = {}
-    for _, prop in pairs( ents.GetAll() ) do
-        if IsValid( prop ) then
-            local propOwner = prop:CPPIGetOwner()
+    local table_insert = table.insert
 
-            if IsValid( propOwner ) then
-                playerProps[propOwner] = playerProps[propOwner] or {}
-                table.insert( playerProps[propOwner], prop )
-            end
+    for _, prop in ents.Iterator() do
+        local propOwner = prop:CPPIGetOwner()
+
+        -- If we're filtering, we don't want to validity check
+        if (only and propOwner == only) or IsValid( propOwner ) then
+            playerProps[propOwner] = playerProps[propOwner] or {}
+            table_insert( playerProps[propOwner], prop )
         end
     end
+
     return playerProps
 end
 
@@ -183,7 +188,6 @@ local function handleReconnect( ply )
         sendRestorationNotification( ply )
     end )
 end
-
 hook.Add( "PlayerInitialSpawn", "CFC_Restoration_Reconnect", handleReconnect )
 
 local function saveProps( time )
@@ -193,13 +197,14 @@ local function saveProps( time )
 
     logger:debug( "Autosaving player props" )
 
-    local playersProps = getAllPlayerProps()
+    local playersProps = getPlayerProps()
 
     for _, ply in pairs( player.GetHumans() ) do
         hook.Run( "CFC_PropRestore_SavingPlayer", ply )
 
-        local propVelocities = getEntityRestorers( playersProps[ply] )
-        local copyObj = PropRestoration.Copy( ply )
+        local plyProps = playersProps[ply]
+        local propVelocities = getEntityRestorers( plyProps )
+        local copyObj = plyProps and PropRestoration.Copy( ply, plyProps )
 
         if copyObj then
             propData[ply:SteamID64()] = copyObj
@@ -213,13 +218,16 @@ local function saveProps( time )
     local autosaveDelay = GetConVar( "cfc_proprestore_autosave_delay" ):GetInt()
     nextSave = time + autosaveDelay
 end
-
 hook.Add( "CFC_DailyRestart_SoftRestart", "CFC_PropRestore_SaveProps", saveProps )
 
 local function handleDisconnect( ply )
     local steamID64 = ply:SteamID64()
     local expireTime = GetConVar( "cfc_proprestore_expire_delay" ):GetInt()
-    local copyObj = PropRestoration.Copy( ply )
+
+    local plyProps = getPlayerProps( ply )[ply]
+    if not plyProps then return end
+
+    local copyObj = PropRestoration.Copy( ply, plyProps )
     if not copyObj then return end
 
     disconnectedExpireTimes[steamID64] = CurTime() + expireTime
@@ -230,8 +238,7 @@ local function handleDisconnect( ply )
 
     addPropDataToQueue( ply, props )
 end
-
-hook.Add( "PlayerDisconnected", "CFC_Restoration_Disconnect", handleDisconnect )
+hook.Add( "PlayerDisconnected", "CFC_Restoration_Disconnect", handleDisconnect, HOOK_HIGH )
 
 local function handleChatCommands( ply, text )
     local exp = string.Explode( " ", text )
@@ -270,7 +277,6 @@ local function handleChatCommands( ply, text )
         return ""
     end
 end
-
 hook.Add( "PlayerSay", "CFC_Restoration_PlayerSay", handleChatCommands )
 
 timer.Create( "CFC_Restoration_Think", 5, 0, function()
