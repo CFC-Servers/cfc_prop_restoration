@@ -4,8 +4,6 @@ local logger = Logger( "Prop Restoration" )
 
 local restorationDirectory = "prop_restoration"
 local disconnectedExpireTimes = {}
-local propData = {}
-local queue = {}
 local restorationDelays = {}
 local restorePromptDuration
 local restoreDelay = 3
@@ -15,13 +13,21 @@ local noop = function() end
 
 local IsValid = IsValid
 
+-- Table of the latest encoded dupe data for a player
+-- SteamID64 -> Encoded Dupe Data
+--- @type table<string, string>
+local latestDupes = {}
+
+-- Queue of prop data waiting to be encoded and saved
+local saveQueue = {}
+
 CreateConVar( "cfc_proprestore_expire_delay", "600", FCVAR_ARCHIVE, "Time (in seconds) for the player to reconnect before prop data is lost.", 0 )
 CreateConVar( "cfc_proprestore_autosave_delay", "180", FCVAR_ARCHIVE, "How often (in seconds) the server saves prop data", 0 )
 CreateConVar( "cfc_proprestore_notification_timeout", "240", FCVAR_ARCHIVE, "How long (in seconds) the restore prompt notification will display for players when they join", 0 )
 
 do
     local function populateDisconnectedExpireTimes()
-        local files, _ = file.Find( restorationDirectory .. "/*.json", "DATA" )
+        local files, _ = file.Find( restorationDirectory .. "/*.txt", "DATA" )
         local expireTime = GetConVar( "cfc_proprestore_expire_delay" ):GetInt()
 
         for _, fileName in pairs( files ) do
@@ -55,9 +61,10 @@ end
 
 local function spawnInPlayerProps( ply )
     local steamID64 = ply:SteamID64()
-    if not propData[steamID64] then return end
+    local encodedDupe = latestDupes[steamID64]
+    if not encodedDupe then return end
 
-    PropRestoration.Paste( ply, propData[steamID64] )
+    PropRestoration.Paste( ply, encodedDupe )
 end
 
 hook.Add( "CFC_Notifications_init", "CFC_PropRestore_CreateNotif", function()
@@ -77,42 +84,38 @@ hook.Add( "CFC_Notifications_init", "CFC_PropRestore_CreateNotif", function()
 end )
 
 local function addPropDataToQueue( ply, data )
-    queue[ply:SteamID64()] = data
+    saveQueue[ply:SteamID64()] = data
 end
 
-local function processQueueData()
-    local steamID64, data = next( queue )
+local function processSaveQueue()
+    local steamID64, data = next( saveQueue )
     if not steamID64 or not data then return end
 
     logger:debug( "Handling queue for " .. steamID64 )
 
-    local encodeData = util.TableToJSON( data )
-    local fileName = restorationDirectory .. "/" .. steamID64 .. ".json"
+    PropRestoration.Encode( data, function( encodeData )
+        local fileName = restorationDirectory .. "/" .. steamID64 .. ".txt"
 
-    file.Write( fileName, encodeData )
+        file.Write( fileName, encodeData )
 
-    local fileSize = string.NiceSize( file.Size( fileName, "DATA" ) )
-    logger:debug( "Saving prop data to " .. fileName .. " (" .. fileSize .. ")" )
+        local fileSize = string.NiceSize( file.Size( fileName, "DATA" ) )
+        logger:debug( "Saving prop data to " .. fileName .. " (" .. fileSize .. ")" )
 
-    queue[steamID64] = nil
+        latestDupes[steamID64] = encodeData
+    end )
+
+    saveQueue[steamID64] = nil
 end
 
 local function getPropsFromFile( ply )
     local steamID64 = ply:SteamID64()
-    if propData[steamID64] then return end
+    if latestDupes[steamID64] then return end
 
-    local fileName = restorationDirectory .. "/" .. ply:SteamID64() .. ".json"
+    local fileName = restorationDirectory .. "/" .. ply:SteamID64() .. ".txt"
     if not file.Exists( fileName, "DATA" ) then return end
 
     local contents = file.Read( fileName, "DATA" )
-    local decodeData = util.JSONToTable( contents )
-
-    propData[steamID64] = decodeData
-end
-
-local function sendRestorationNotification( ply )
-    if not notif then return end
-    notif:Send( ply )
+    latestDupes[steamID64] = contents
 end
 
 local function getEntityRestorers( entities )
@@ -183,22 +186,23 @@ end
 
 local function handleReconnect( ply )
     local steamID64 = ply:SteamID64()
+    local success = ProtectedCall( getPropsFromFile, ply )
 
-    getPropsFromFile( ply )
+    if not success then return end
+    if not latestDupes[steamID64] then return end
 
-    if not propData[steamID64] then return end
     disconnectedExpireTimes[steamID64] = nil
 
+    if not notif then return end
     logger:info( "Sending notification to (" .. steamID64 .. ")" )
-
     timer.Simple( 5, function()
-        sendRestorationNotification( ply )
+        notif:Send( ply )
     end )
 end
 hook.Add( "PlayerInitialSpawn", "CFC_Restoration_Reconnect", handleReconnect )
 
 local function saveProps( time )
-    if not table.IsEmpty( queue ) then return end
+    if not table.IsEmpty( saveQueue ) then return end
 
     time = time or CurTime()
 
@@ -214,7 +218,6 @@ local function saveProps( time )
         local copyObj = plyProps and PropRestoration.Copy( ply, plyProps )
 
         if copyObj then
-            propData[ply:SteamID64()] = copyObj
             addPropDataToQueue( ply, copyObj )
         end
 
@@ -239,8 +242,6 @@ local function handleDisconnect( ply )
 
     disconnectedExpireTimes[steamID64] = CurTime() + expireTime
 
-    propData[steamID64] = props
-
     logger:debug( "Handling (" .. steamID64 .. ")'s props." )
 
     addPropDataToQueue( ply, props )
@@ -255,18 +256,15 @@ local function handleChatCommands( ply, text )
         local steamID64 = ply:SteamID64()
 
         if canRestoreProps( ply ) then
-            if notif then
-                notif:RemovePopups( ply )
-            end
+            if notif then notif:RemovePopups( ply ) end
 
-            local data = propData[steamID64]
-            if data == nil or table.IsEmpty( data ) then
-                ply:ChatPrint( "Couldn't find any props to restore." )
-            else
+            if latestDupes[steamID64] then
                 spawnInPlayerProps( ply )
 
                 restorationDelays[steamID64] = CurTime() + restoreDelay
                 ply:ChatPrint( "Spawning in your props..." )
+            else
+                ply:ChatPrint( "Couldn't find any props to restore." )
             end
         else
             ply:ChatPrint( "You must wait " .. math.Round( restorationDelays[steamID64] - CurTime(), 0 ) .. " more seconds before using this again." )
@@ -299,13 +297,11 @@ timer.Create( "CFC_Restoration_Think", 5, 0, function()
         if time >= plyExpireTime then
             logger:debug( "Deleting entry for SteamID: " .. steamID64 )
 
+            latestDupes[steamID64] = nil
             disconnectedExpireTimes[steamID64] = nil
-            propData[steamID64] = nil
-
-            file.Delete( restorationDirectory .. "/" .. steamID64 .. ".json" )
+            file.Delete( restorationDirectory .. "/" .. steamID64 .. ".txt" )
         end
     end
 
-    -- Handling Queued PropData
-    processQueueData()
+    processSaveQueue()
 end )
