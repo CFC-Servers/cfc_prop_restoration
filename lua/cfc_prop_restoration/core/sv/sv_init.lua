@@ -25,7 +25,7 @@ do
         local expireTime = GetConVar( "cfc_proprestore_expire_delay" ):GetInt()
 
         for _, fileName in pairs( files ) do
-            local steamID64 = string.sub( fileName, 1, -5 )
+            local steamID64 = string.sub( fileName, 1, -6 )
 
             disconnectedExpireTimes[steamID64] = CurTime() + expireTime
             logger:debug( "Adding (" .. steamID64 .. ") to the disconnectedExpireTimes table." )
@@ -115,13 +115,13 @@ local function sendRestorationNotification( ply )
     notif:Send( ply )
 end
 
-local function getEntityRestorers( ents )
-    if not ents then return {} end
+local function getEntityRestorers( entities )
+    if not entities then return {} end
     local restorers = {}
-    local entCount = #ents
+    local entCount = #entities
 
     for i = 1, entCount do
-        local ent = ents[i]
+        local ent = entities[i]
 
         if IsValid( ent ) then
             local physObj = ent:GetPhysicsObject()
@@ -150,7 +150,14 @@ local function runRestorers( restorers )
     local restorerCount = #restorers
 
     for i = 1, restorerCount do
-        ProtectedCall( restorers[i] )
+        local restorer = restorers[i]
+
+        if restorers then
+            ProtectedCall( restorer )
+        else
+            ErrorNoHalt( "Restorer at index " .. i .. " is nil." )
+            PrintTable( restorers )
+        end
     end
 end
 
