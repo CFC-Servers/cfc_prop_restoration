@@ -155,7 +155,7 @@ local function runRestorers( restorers )
     for i = 1, restorerCount do
         local restorer = restorers[i]
 
-        if restorers then
+        if restorer then
             ProtectedCall( restorer )
         else
             ErrorNoHalt( "Restorer at index " .. i .. " is nil." )
