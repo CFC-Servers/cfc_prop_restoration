@@ -139,6 +139,8 @@ local function getEntityRestorers( entities )
                     physObj:SetVelocity( velocity )
                     physObj:SetAngleVelocity( angVelocity )
                 end
+            else
+                restorers[i] = noop
             end
         else
             restorers[i] = noop
