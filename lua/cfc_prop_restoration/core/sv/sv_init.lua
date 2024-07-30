@@ -197,11 +197,9 @@ local function handleReconnect( ply )
 
     if not notif then return end
     logger:info( "Sending notification to (" .. steamID64 .. ")" )
-    timer.Simple( 5, function()
-        notif:Send( ply )
-    end )
+    notif:Send( ply )
 end
-hook.Add( "PlayerInitialSpawn", "CFC_Restoration_Reconnect", handleReconnect )
+hook.Add( "PlayerFullLoad", "CFC_Restoration_Reconnect", handleReconnect )
 
 local function saveProps( time )
     if not table.IsEmpty( saveQueue ) then return end
